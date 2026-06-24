@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ダーツ・フォーム チェッカー</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#14171A;
+    --surface:#1E2227;
+    --surface2:#242830;
+    --border:#2C3137;
+    --border-soft:#23272C;
+    --text:#ECEFF2;
+    --text-dim:#9AA3AC;
+    --text-faint:#6B7480;
+    --accent:#3FCF8E;
+    --t1:#E2484B;
+    --t2:#4C8DFF;
+    --t3:#F2B134;
+    --good:#3FCF8E;
+    --ok:#7FD17A;
+    --warn:#F2B134;
+    --bad:#E2484B;
+    --font-ui: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Roboto Mono", Consolas, monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(ellipse at top, #1a1e22 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:var(--font-ui);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+  .app{max-width:480px;margin:0 auto;padding:14px 14px 0;}
+
+  .topbar{display:flex;align-items:center;gap:10px;padding:6px 2px 12px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand h1{font-size:17px;margin:0;letter-spacing:.01em;}
+  .brand .sub{font-size:11.5px;color:var(--text-faint);margin:1px 0 0;}
+
+  details.help{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 13px;margin-bottom:14px;font-size:12.5px;color:var(--text-dim);}
+  details.help summary{cursor:pointer;color:var(--text);font-size:13px;font-weight:600;outline:none;}
+  details.help ol{margin:9px 0 6px;padding-left:18px;}
+  details.help li{margin-bottom:5px;line-height:1.5;}
+  details.help .note{color:var(--text-faint);font-size:11.5px;line-height:1.6;margin:8px 0 2px;border-top:1px solid var(--border-soft);padding-top:8px;}
+
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  .upload-zone{background:var(--surface);border:1.5px dashed var(--border);border-radius:14px;padding:34px 16px;text-align:center;}
+  .upload-btn{
+    background:var(--surface2);border:1px solid var(--border);color:var(--text);
+    border-radius:10px;padding:13px 20px;font-size:14.5px;font-family:var(--font-ui);
+    display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;
+  }
+  .upload-zone .hint{font-size:11.5px;color:var(--text-faint);margin:14px 0 0;line-height:1.6;}
+
+  .processing-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px 22px;text-align:center;}
+  .processing-video{display:block;max-width:150px;max-height:150px;width:auto;height:auto;margin:0 auto 18px;border-radius:10px;background:#000;}
+  .spinner{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto 16px;animation:spin .9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .processing-status{font-size:13px;color:var(--text-dim);margin:0 0 16px;min-height:18px;line-height:1.5;}
+  .processing-track{height:6px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+  .processing-bar{height:100%;width:0%;background:var(--accent);transition:width .25s ease;}
+
+  .error-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px 22px;text-align:center;}
+  .error-title{color:var(--bad);font-size:14.5px;font-weight:700;margin:0 0 8px;}
+  .error-detail{font-size:12.5px;color:var(--text-dim);line-height:1.6;margin:0 0 18px;}
+
+  .primary-btn{background:var(--accent);color:#0b1410;border:none;border-radius:10px;padding:11px 20px;font-size:13.5px;font-weight:700;font-family:var(--font-ui);cursor:pointer;}
+  .ghost-btn{background:transparent;border:1px solid var(--border);color:var(--text-faint);border-radius:9px;padding:9px 16px;font-size:12px;font-family:var(--font-ui);cursor:pointer;}
+  .ghost-btn:hover{color:var(--text);border-color:var(--text-dim);}
+
+  .timeline-summary{margin-bottom:18px;}
+  .timeline-track{position:relative;height:26px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);margin-bottom:20px;overflow:hidden;}
+  .timeline-stance{position:absolute;top:0;bottom:0;background:rgba(63,207,142,0.18);border-left:1px dashed rgba(63,207,142,0.5);border-right:1px dashed rgba(63,207,142,0.5);}
+  .timeline-mark{position:absolute;top:-3px;bottom:-3px;width:3px;border-radius:2px;transform:translateX(-50%);}
+  .timeline-mark .tlabel{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;font-size:10px;font-family:var(--font-mono);font-weight:700;white-space:nowrap;}
+  .timeline-caption{font-size:10.5px;color:var(--text-faint);text-align:center;margin:0;}
+
+  .mosaic-toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);margin-bottom:18px;cursor:pointer;user-select:none;}
+  .mosaic-toggle input{width:17px;height:17px;accent-color:var(--accent);cursor:pointer;}
+
+  .setup-ref{margin-bottom:18px;opacity:.88;}
+  .setup-ref-title{font-size:11px;color:var(--text-faint);margin:0 0 8px;}
+  .setup-ref-row{display:flex;gap:8px;}
+  .setup-thumb{flex:1;text-align:center;min-width:0;}
+  .setup-thumb canvas{border-radius:7px;border:1px solid var(--border-soft);display:block;}
+  .setup-thumb-label{font-size:9.5px;color:var(--text-faint);margin-top:3px;}
+
+  .trajectory-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;text-align:center;}
+  .trajectory-card h3{font-size:13.5px;margin:0 0 12px;color:var(--text);text-align:left;}
+  .traj-video-row{display:flex;gap:8px;justify-content:center;margin-bottom:14px;}
+  .traj-col{flex:none;text-align:center;}
+  .traj-video-box{position:relative;}
+  .traj-video-box video{display:block;width:100%;height:auto;border-radius:8px;background:#000;}
+  .traj-video-box canvas{position:absolute;top:0;left:0;pointer-events:none;}
+  .traj-col-label{font-size:10.5px;font-weight:700;margin-top:5px;}
+  .traj-fallback-note{font-size:12px;color:var(--text-faint);padding:14px 6px;}
+  .traj-caption{font-size:10.5px;color:var(--text-faint);line-height:1.5;margin:10px 2px 0;}
+
+  .app-footer{padding:10px 2px 30px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .edit-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);border-radius:9px;padding:10px 18px;font-size:13px;font-family:var(--font-ui);cursor:pointer;}
+  .edit-btn:hover{color:var(--text);border-color:var(--text-dim);}
+
+  .edit-modal-bg{position:fixed;inset:0;background:rgba(8,9,10,.82);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+  .edit-modal-bg:not([hidden]){display:flex;}
+  .edit-modal{background:var(--bg);border-top:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:16px 16px 32px;max-height:95vh;overflow-y:auto;}
+  .edit-modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .edit-modal-title{font-size:14px;font-weight:700;color:var(--text);}
+  .edit-close-btn{background:transparent;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;padding:2px 6px;}
+  .edit-throw-tabs{display:flex;gap:6px;margin-bottom:12px;}
+  .edit-throw-tab{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:8px;font-size:13px;font-family:var(--font-ui);cursor:pointer;}
+  .edit-throw-tab.active{border-color:var(--accent);color:var(--text);background:var(--surface2);}
+  .edit-hint{font-size:11.5px;color:var(--text-faint);line-height:1.6;margin:0 0 12px;}
+  .edit-video-wrap{background:#000;border-radius:10px;overflow:hidden;margin-bottom:10px;text-align:center;}
+  .edit-video-wrap video{max-width:100%;max-height:42vh;display:block;margin:0 auto;}
+  .edit-scrub{margin-bottom:6px;}
+  .edit-scrub input{width:100%;accent-color:var(--accent);}
+  .edit-time{font-size:11px;font-family:var(--font-mono);color:var(--text-faint);text-align:center;margin-top:2px;}
+  .edit-step-btns{display:flex;gap:8px;margin-bottom:14px;}
+  .edit-step-btns button{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-size:13px;font-family:var(--font-ui);cursor:pointer;}
+  .edit-confirm-btn{width:100%;background:var(--accent);color:#0b1410;border:none;border-radius:10px;padding:13px;font-size:14.5px;font-weight:700;font-family:var(--font-ui);cursor:pointer;}
+  .edit-saving{font-size:12px;color:var(--text-faint);text-align:center;margin-top:10px;}
+
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important;} }
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="20" fill="none" stroke="#2C3137" stroke-width="2"/>
+        <circle cx="24" cy="24" r="13" fill="none" stroke="#3a4047" stroke-width="2"/>
+        <circle cx="24" cy="24" r="6" fill="none" stroke="#3FCF8E" stroke-width="2"/>
+        <circle cx="24" cy="24" r="2" fill="#F2B134"/>
+      </svg>
+      <div>
+        <h1>フォーム チェッカー</h1>
+        <p class="sub">動画1本で3投を自動分析</p>
+      </div>
+    </div>
+  </header>
+
+  <details class="help">
+    <summary>使い方</summary>
+    <ol>
+      <li>ダーツを3投投げている動画を1本アップロードします。</li>
+      <li>あとは自動です。肩・ひじ・手首の動きから3投を見つけ、構え〜テイクバック〜リリース〜フォロースルーを自動で判定します。</li>
+      <li>解析が終わると、3投の映像を並べて、手首の軌道を重ねて再生できます。</li>
+    </ol>
+    <p class="note">※ カメラを固定し、投げ手の上半身全体が映るように撮影すると検出精度が上がります。自動検出のため、瞬間や位置に多少のズレが出ることがあります。通信環境はWi-Fiを推奨します。</p>
+  </details>
+
+  <main>
+    <section class="screen active" id="screen-upload">
+      <div class="upload-zone">
+        <button class="upload-btn" id="uploadBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4l-5 5M12 4l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          動画を選択
+        </button>
+        <input type="file" accept="video/*" id="fileInput" hidden>
+        <p class="hint">スマホで撮影した、ダーツを3投投げている動画（1本）<br>アップロードするだけで自動的に分析します</p>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-processing">
+      <div class="processing-card">
+        <video id="hiddenVideo" class="processing-video" playsinline webkit-playsinline="true" muted></video>
+        <div class="spinner"></div>
+        <p class="processing-status" id="processingStatus">準備しています…</p>
+        <div class="processing-track"><div class="processing-bar" id="processingBar"></div></div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-error">
+      <div class="error-card">
+        <p class="error-title">解析できませんでした</p>
+        <p class="error-detail" id="errorDetail">-</p>
+        <button class="primary-btn" id="retryFromError">もう一度試す</button>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-results">
+      <div class="timeline-summary">
+        <div class="timeline-track" id="timelineTrack"></div>
+        <p class="timeline-caption">検出した3投の位置（緑の帯＝構えに入っていると判定した区間）</p>
+      </div>
+      <label class="mosaic-toggle">
+        <input type="checkbox" id="mosaicToggle">
+        <span>顔にモザイクをかける</span>
+      </label>
+      <div class="setup-ref" id="setupRef">
+        <p class="setup-ref-title">セットアップの基準（各投の構え始め・参考表示）</p>
+        <div class="setup-ref-row" id="setupRefRow"></div>
+      </div>
+      <div class="trajectory-card">
+        <h3>軌跡の比較</h3>
+        <div class="traj-video-row" id="trajVideoRow"></div>
+        <button class="primary-btn" id="trajPlayBtn">もう一度再生</button>
+        <p class="traj-caption">線＝手首の軌道、小さい白い点＝肩。3投ともセットアップの瞬間からそろえて、スロー再生しています。</p>
+      </div>
+      <div class="trajectory-card">
+        <h3>3投の重ね合わせ</h3>
+        <div class="traj-canvas-wrap"><canvas id="overlayCanvas"></canvas></div>
+        <p class="traj-caption">3投の動画を透明度を変えて重ねています。動きが揃っていれば重なってクッキリ、ズレていればぼやけて(二重に)見えます。線は各投の手首の軌道です。</p>
+      </div>
+      <div class="app-footer">
+        <button class="edit-btn" id="editBtn" hidden>投げた瞬間を修正する</button>
+        <button class="ghost-btn" id="startOverBtn">別の動画でやり直す</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 手動編集モーダル -->
+  <div class="edit-modal-bg" id="editModalBg" hidden>
+    <div class="edit-modal">
+      <div class="edit-modal-header">
+        <span class="edit-modal-title">投げた瞬間を修正</span>
+        <button class="edit-close-btn" id="editCloseBtn">✕</button>
+      </div>
+      <div class="edit-throw-tabs">
+        <button class="edit-throw-tab active" data-throw="0">投1</button>
+        <button class="edit-throw-tab" data-throw="1">投2</button>
+        <button class="edit-throw-tab" data-throw="2">投3</button>
+      </div>
+      <p class="edit-hint">動画をコマ送りして「リリース（ダーツを放した瞬間）」に合わせ、「この瞬間で確定」を押してください。</p>
+      <div class="edit-video-wrap">
+        <video id="editVideo" playsinline webkit-playsinline="true" muted></video>
+      </div>
+      <div class="edit-scrub">
+        <input type="range" id="editSeek" min="0" max="10000" value="0">
+        <div class="edit-time" id="editTime">00:00 / 00:00</div>
+      </div>
+      <div class="edit-step-btns">
+        <button id="editStepBack">◁ コマ</button>
+        <button id="editPlayBtn">▶</button>
+        <button id="editStepFwd">コマ ▷</button>
+      </div>
+      <button class="edit-confirm-btn" id="editConfirmBtn">この瞬間で確定</button>
+      <p class="edit-saving" id="editSaving" hidden>再計算中…</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/human/3.3.6/human.js"></script>
+<script>
+/* ============================== 定数 ============================== */
+const THROW_COLORS = ['#E2484B','#4C8DFF','#F2B134'];
+const THROW_LABELS = ['投1','投2','投3'];
+const STORAGE_KEY = 'darts_form_session_v7';
+
+/* ============================== 状態 ============================== */
+let state = null;
+let lastMeta = null;
+let human = null;
+let aiLoaded = false;
+let trajRafId = null;
+let trajVideos = [];
+let mosaicEnabled = false;
+const imgCache = new Map();
+
+function createInitialState(){
+  return { throws: [1,2,3].map(()=>({ setup:null, trajectory:[], releaseTime:0, clipStart:0, clipEnd:0, faceTrack:[], faceRadius:0.18, setupFace:null })) };
+}
+
+/* ============================== ユーティリティ ============================== */
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function formatTime(t){
+  if(!isFinite(t) || t<0) return '00:00';
+  const m = Math.floor(t/60), s = Math.floor(t%60);
+  const pad=(v)=>String(v).padStart(2,'0');
+  return `${pad(m)}:${pad(s)}`;
+}
+function loadImage(src){
+  if(!src) return Promise.resolve(null);
+  if(imgCache.has(src)) return Promise.resolve(imgCache.get(src));
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>{ imgCache.set(src,img); resolve(img); };
+    img.onerror = ()=>resolve(null);
+    img.src = src;
+  });
+}
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>{ s.classList.toggle('active', s.id==='screen-'+name); });
+}
+function setProcessingStatus(text, pct){
+  const s=document.getElementById('processingStatus'); if(s) s.textContent=text;
+  if(pct!=null){ const b=document.getElementById('processingBar'); if(b) b.style.width=clamp(pct,0,100)+'%'; }
+}
+
+/* ============================== 動画の準備 ============================== */
+function waitMetadata(video){
+  return new Promise((resolve,reject)=>{
+    const onMeta=()=>{cleanup(); resolve();};
+    const onErr=()=>{cleanup(); reject(new Error('video load error'));};
+    function cleanup(){ video.removeEventListener('loadedmetadata',onMeta); video.removeEventListener('error',onErr); }
+    video.addEventListener('loadedmetadata', onMeta, {once:true});
+    video.addEventListener('error', onErr, {once:true});
+  });
+}
+function ensureDuration(video){
+  return new Promise((resolve)=>{
+    if(isFinite(video.duration) && video.duration>0){ resolve(); return; }
+    function onUpdate(){
+      if(isFinite(video.duration) && video.duration>0){
+        video.removeEventListener('timeupdate', onUpdate);
+        video.currentTime = 0;
+        resolve();
+      }
+    }
+    video.addEventListener('timeupdate', onUpdate);
+    video.currentTime = 1e7;
+    setTimeout(()=>{ video.removeEventListener('timeupdate', onUpdate); video.currentTime=0; resolve(); }, 1500);
+  });
+}
+function waitSeeked(video){
+  return new Promise(resolve=>{
+    let done=false;
+    const handler=()=>{ if(done) return; done=true; video.removeEventListener('seeked',handler); resolve(); };
+    video.addEventListener('seeked', handler, {once:true});
+    setTimeout(handler, 900);
+  });
+}
+function captureFrame(video){
+  const vw = video.videoWidth || 640, vh = video.videoHeight || 360;
+  const maxDim = 640;
+  const scale = Math.min(1, maxDim/Math.max(vw,vh));
+  const cw = Math.max(1, Math.round(vw*scale)), ch = Math.max(1, Math.round(vh*scale));
+  const off = document.createElement('canvas');
+  off.width = cw; off.height = ch;
+  off.getContext('2d').drawImage(video, 0, 0, cw, ch);
+  return { w: cw, h: ch, dataURL: off.toDataURL('image/jpeg', 0.82) };
+}
+// AI解析用: 動画の回転メタデータを安全に扱うため、video要素を直接ではなく
+// 必ずcanvasに描画してから渡す(再利用canvasで高速化)。
+function captureFrameCanvas(video, maxDim){
+  const vw = video.videoWidth || 640, vh = video.videoHeight || 360;
+  const scale = Math.min(1, maxDim/Math.max(vw,vh));
+  const cw = Math.max(1, Math.round(vw*scale)), ch = Math.max(1, Math.round(vh*scale));
+  if(!captureFrameCanvas._c) captureFrameCanvas._c = document.createElement('canvas');
+  const c = captureFrameCanvas._c;
+  if(c.width!==cw) c.width = cw;
+  if(c.height!==ch) c.height = ch;
+  c.getContext('2d').drawImage(video, 0, 0, cw, ch);
+  return c;
+}
+
+/* ============================== AI(姿勢推定) ============================== */
+async function ensureAI(){
+  if(aiLoaded) return;
+  if(typeof Human === 'undefined') throw new Error('human.js not available');
+  human = new Human.Human({
+    modelBasePath: 'https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/models/',
+    backend: 'webgl',
+    face:{enabled:false}, hand:{enabled:false}, object:{enabled:false},
+    gesture:{enabled:false}, segmentation:{enabled:false}, filter:{enabled:false},
+    body:{enabled:true}
+  });
+  await Promise.race([
+    human.load(),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 20000))
+  ]);
+  await human.warmup();
+  aiLoaded = true;
+}
+
+/* ============================== 動画全体をスキャンして関節の軌跡を取得 ============================== */
+function collectPoseSamples(video, onProgress){
+  return new Promise((resolve)=>{
+    const samples = { leftWrist:[], rightWrist:[], leftElbow:[], rightElbow:[], leftShoulder:[], rightShoulder:[], nose:[] };
+    let busy=false, raf=null, settled=false;
+    function get(kp,name){
+      const k = kp.find(p=>p.part===name);
+      return (k && k.score>0.1 && k.positionRaw) ? {x:k.positionRaw[0], y:k.positionRaw[1]} : null;
+    }
+    function finish(){
+      if(settled) return; settled=true;
+      if(raf) cancelAnimationFrame(raf);
+      resolve(samples);
+    }
+    function tick(){
+      if(settled) return;
+      if(video.ended){ finish(); return; }
+      if(!busy){
+        busy = true;
+        const t = video.currentTime;
+        const frameCanvas = captureFrameCanvas(video, 480);
+        human.detect(frameCanvas).then(res=>{
+          if(res && res.body && res.body.length){
+            let best = res.body[0];
+            let bestArea = best.box ? best.box[2]*best.box[3] : 0;
+            for(let bi=1; bi<res.body.length; bi++){
+              const b = res.body[bi];
+              const area = b.box ? b.box[2]*b.box[3] : 0;
+              if(area > bestArea){ bestArea = area; best = b; }
+            }
+            const kp = best.keypoints;
+            const lw=get(kp,'leftWrist'), rw=get(kp,'rightWrist'), le=get(kp,'leftElbow'), re=get(kp,'rightElbow');
+            const ls=get(kp,'leftShoulder'), rs=get(kp,'rightShoulder');
+            const nose=get(kp,'nose');
+            if(nose) samples.nose.push({t,x:nose.x,y:nose.y});
+            if(ls) samples.leftShoulder.push({t,x:ls.x,y:ls.y});
+            if(rs) samples.rightShoulder.push({t,x:rs.x,y:rs.y});
+            if(lw) samples.leftWrist.push({t,x:lw.x,y:lw.y});
+            if(rw) samples.rightWrist.push({t,x:rw.x,y:rw.y});
+            if(le) samples.leftElbow.push({t,x:le.x,y:le.y});
+            if(re) samples.rightElbow.push({t,x:re.x,y:re.y});
+          }
+          busy = false;
+        }).catch(()=>{ busy=false; });
+      }
+      if(onProgress) onProgress(video.currentTime, video.duration||1);
+      raf = requestAnimationFrame(tick);
+    }
+    video.addEventListener('ended', finish, {once:true});
+    video.muted = true;
+    video.currentTime = 0;
+    video.play().then(()=>{ raf = requestAnimationFrame(tick); }).catch(()=>{ finish(); });
+  });
+}
+
+/* ============================== 軌跡の解析 ============================== */
+function interpAt(samples, t){
+  if(!samples.length) return {x:0.5,y:0.5};
+  if(t<=samples[0].t) return {x:samples[0].x, y:samples[0].y};
+  const last=samples[samples.length-1];
+  if(t>=last.t) return {x:last.x, y:last.y};
+  for(let i=0;i<samples.length-1;i++){
+    const a=samples[i], b=samples[i+1];
+    if(a.t<=t && b.t>=t){
+      const f = (b.t-a.t)>0 ? (t-a.t)/(b.t-a.t) : 0;
+      return {x:a.x+(b.x-a.x)*f, y:a.y+(b.y-a.y)*f};
+    }
+  }
+  return {x:last.x, y:last.y};
+}
+function movingAverage(arr, w){
+  const out = new Array(arr.length).fill(0);
+  for(let i=0;i<arr.length;i++){
+    let s=0,c=0;
+    for(let j=Math.max(0,i-w); j<=Math.min(arr.length-1,i+w); j++){ s+=arr[j]; c++; }
+    out[i] = s/c;
+  }
+  return out;
+}
+function pickArmSide(samples){
+  const totalMotion=(arr)=>{
+    let s=0;
+    for(let i=1;i<arr.length;i++) s += Math.hypot(arr[i].x-arr[i-1].x, arr[i].y-arr[i-1].y);
+    return s;
+  };
+  const lm = totalMotion(samples.leftWrist), rm = totalMotion(samples.rightWrist);
+  return rm>=lm ? 'right' : 'left';
+}
+// 両肩の間隔(肩幅)を体格の基準スケールとして推定し、各時刻の「肩の中点」も求める
+function computeBodyReference(samples, duration, stepT){
+  const ls = samples.leftShoulder, rs = samples.rightShoulder;
+  const widths = [];
+  ls.forEach(lp=>{
+    if(rs.length){
+      const rp = interpAt(rs, lp.t);
+      widths.push(Math.hypot(lp.x-rp.x, lp.y-rp.y));
+    }
+  });
+  let scale = 0.18;
+  if(widths.length>=3){
+    const sorted = widths.slice().sort((a,b)=>a-b);
+    const med = sorted[Math.floor(sorted.length/2)];
+    if(med>0.03) scale = med;
+  }
+  const mids = [];
+  for(let t=0; t<=duration+1e-9; t+=stepT){
+    const l = ls.length ? interpAt(ls,t) : null;
+    const r = rs.length ? interpAt(rs,t) : null;
+    mids.push((l&&r)?{x:(l.x+r.x)/2,y:(l.y+r.y)/2}:(l||r||{x:0.5,y:0.5}));
+  }
+  return { scale, mids, stepT };
+}
+// 任意の関節サンプル列を、肩の中点からの相対位置(肩幅基準のスケール)に変換する
+function buildRelativeTrack(jointSamples, bodyRef){
+  const { mids, stepT, scale } = bodyRef;
+  const out = [];
+  for(let i=0;i<mids.length;i++){
+    const t = i*stepT;
+    const p = jointSamples.length ? interpAt(jointSamples, t) : mids[i];
+    out.push({ t, x:(p.x-mids[i].x)/scale, y:(p.y-mids[i].y)/scale });
+  }
+  return out;
+}
+// 体幹(肩の中点)がほぼ動いていない=構えに入って静止している区間を見つける
+function findStableStanceWindow(mids, stepT){
+  if(mids.length < 6) return { startIdx:0, endIdx:mids.length-1 };
+  const moves=[0];
+  for(let i=1;i<mids.length;i++){
+    moves.push(Math.hypot(mids[i].x-mids[i-1].x, mids[i].y-mids[i-1].y)/stepT);
+  }
+  const smoothed = movingAverage(moves,5);
+  const sorted = smoothed.slice().sort((a,b)=>a-b);
+  const threshold = (sorted[Math.floor(sorted.length*0.5)]||0.001)*1.8;
+  let bestStart=0,bestLen=0,curStart=0,curLen=0;
+  for(let i=0;i<smoothed.length;i++){
+    if(smoothed[i]<=threshold){
+      if(curLen===0) curStart=i;
+      curLen++;
+      if(curLen>bestLen){bestLen=curLen;bestStart=curStart;}
+    } else curLen=0;
+  }
+  if(bestLen < smoothed.length*0.2) return { startIdx:0, endIdx:smoothed.length-1 };
+  const pad = Math.round(0.3/stepT);
+  return { startIdx:Math.max(0,bestStart-pad), endIdx:Math.min(smoothed.length-1,bestStart+bestLen-1+pad) };
+}
+function findPeaks(speeds, minGapSamples, count, rangeStart, rangeEnd){
+  rangeStart = rangeStart || 0;
+  rangeEnd = (rangeEnd==null) ? speeds.length-1 : rangeEnd;
+  const candidates = [];
+  for(let i=Math.max(1,rangeStart); i<Math.min(speeds.length-1,rangeEnd); i++){
+    if(speeds[i]>=speeds[i-1] && speeds[i]>=speeds[i+1] && speeds[i]>0) candidates.push({i, v:speeds[i]});
+  }
+  candidates.sort((a,b)=>b.v-a.v);
+  let chosen = [];
+  for(const c of candidates){
+    if(chosen.every(ch=>Math.abs(ch.i-c.i)>=minGapSamples)){
+      chosen.push(c);
+      if(chosen.length>=count) break;
+    }
+  }
+  if(chosen.length < count){
+    const lo = Math.max(0, rangeStart), hi = Math.min(speeds.length-1, rangeEnd);
+    const span = Math.max(1, hi-lo+1);
+    const segLen = Math.max(1, Math.floor(span/count));
+    const forced = [];
+    for(let s=0;s<count;s++){
+      const start=lo+s*segLen, end = s===count-1 ? hi : Math.min(hi, lo+(s+1)*segLen-1);
+      let bestI=start, bestV=-1;
+      for(let i=start;i<=end;i++){ if(speeds[i]>bestV){ bestV=speeds[i]; bestI=i; } }
+      forced.push({i:bestI, v:bestV});
+    }
+    chosen = forced;
+  }
+  chosen.sort((a,b)=>a.i-b.i);
+  return chosen;
+}
+// 速さが基準を超えている区間(=山)を見つける
+function findEnvelopes(speeds, rangeStart, rangeEnd){
+  const seg = [];
+  for(let i=rangeStart;i<=rangeEnd;i++) seg.push(speeds[i]);
+  const sorted = seg.slice().sort((a,b)=>a-b);
+  const median = sorted[Math.floor(sorted.length*0.5)] || 0;
+  const threshold = Math.max(median*2.6, 0.06);
+  const envs = [];
+  let curStart=-1;
+  for(let i=rangeStart;i<=rangeEnd;i++){
+    const active = speeds[i] > threshold;
+    if(active && curStart===-1) curStart=i;
+    if(!active && curStart!==-1){ envs.push({start:curStart,end:i-1}); curStart=-1; }
+  }
+  if(curStart!==-1) envs.push({start:curStart, end:rangeEnd});
+  return envs;
+}
+function mergeCloseEnvelopes(envs, gapSamples){
+  if(!envs.length) return envs;
+  const merged=[Object.assign({},envs[0])];
+  for(let i=1;i<envs.length;i++){
+    const last = merged[merged.length-1];
+    if(envs[i].start - last.end <= gapSamples){ last.end = envs[i].end; }
+    else { merged.push(Object.assign({},envs[i])); }
+  }
+  return merged;
+}
+function envPeak(speeds, env){
+  let mx=-Infinity;
+  for(let i=env.start;i<=env.end;i++){ if(speeds[i]>mx) mx=speeds[i]; }
+  return mx;
+}
+// 区間の開始時点と比べて、肩からの伸びがどれだけ増えたか。
+// 本物の投球は「構え(あまり伸びていない)→リリース(伸びきる)」と増えるが、
+// 投げ終わった後の脱力(すでに伸びた状態から始まる)はほとんど増えない。
+function envExtensionRise(jointRel, env){
+  const startExt = Math.hypot(jointRel[env.start].x, jointRel[env.start].y);
+  let maxExt = -Infinity;
+  for(let i=env.start;i<=env.end;i++){
+    const e = Math.hypot(jointRel[i].x, jointRel[i].y);
+    if(e>maxExt) maxExt = e;
+  }
+  return maxExt - startExt;
+}
+// 「山」の検出から3投ぶんの区間を選ぶ。きれいに3つ見つからない場合はピーク検出+均等割りにフォールバックする
+function chooseThreeThrowEnvelopes(speeds, jointRel, rangeStart, rangeEnd, stepT){
+  const mergeGap = Math.max(2, Math.round(0.25/stepT));
+  let envs = findEnvelopes(speeds, rangeStart, rangeEnd);
+  envs = mergeCloseEnvelopes(envs, mergeGap);
+  const minLen = Math.max(2, Math.round(0.12/stepT));
+  envs = envs.filter(e=>(e.end-e.start)>=minLen);
+
+  if(envs.length===3) return envs;
+  if(envs.length>3){
+    // 合計の動き量(エネルギー)だと、スマホを拾う等のゆっくり長い動きや、
+    // 投げ終わった後に脱力して腕を下ろす動きが、本物の投球より大きく
+    // 評価されてしまうことがあるため、複数の指標を組み合わせてスコアを計算する。
+    // ① 動きの鋭さ(最大速度) × ② 伸びの増加量 × ③ セットアップ高さボーナス
+    // セットアップ時の手首が肩より高い位置(相対Y座標が負 = 画面上方)にあるほど
+    // 本物の投球らしいとして評価を上げる。腕が下がったまま始まる動きを弾く。
+    const setupHeight = (env)=>{
+      const startY = jointRel[env.start].y; // 肩中点からの相対Y(上=負)
+      return startY < 0 ? 1.5 : (startY < 0.5 ? 1.0 : 0.4);
+    };
+    const score = (env)=> envPeak(speeds,env) * Math.max(0.02, envExtensionRise(jointRel,env)) * setupHeight(env);
+    envs = envs.slice().sort((a,b)=>score(b)-score(a)).slice(0,3);
+    envs.sort((a,b)=>a.start-b.start);
+    return envs;
+  }
+  const minGap = Math.max(3, Math.round(0.6/stepT));
+  const peaks = findPeaks(speeds, minGap, 3, rangeStart, rangeEnd);
+  return peaks.map(p=>({ start:Math.max(rangeStart,p.i-2), end:Math.min(rangeEnd,p.i+2) }));
+}
+// peakIdx(リリース)が決まった後、その前後からセットアップ・テイクバック・フォロースルーを算出する。
+// extractThrowPhasesと、後段の「外れ値の投を探し直す」処理の両方から共通で使う。
+function deriveAroundPeak(speeds, jointRel, peakIdx, prevBoundIdx, nextBoundIdx, stepT){
+  const peakPos = jointRel[peakIdx];
+
+  const setupSearchStart = Math.max(prevBoundIdx, peakIdx-Math.round(1.6/stepT));
+  let setupIdx = setupSearchStart, setupV = Infinity;
+  for(let i=setupSearchStart; i<=peakIdx; i++){
+    if(speeds[i] < setupV){ setupV = speeds[i]; setupIdx = i; }
+  }
+
+  let takebackIdx = setupIdx, bestD=-1;
+  for(let i=setupIdx; i<=peakIdx; i++){
+    const d = Math.hypot(jointRel[i].x-peakPos.x, jointRel[i].y-peakPos.y);
+    if(d>bestD){ bestD=d; takebackIdx=i; }
+  }
+
+  const followSearchEnd = Math.min(nextBoundIdx, peakIdx+Math.round(0.6/stepT));
+  let followIdx = peakIdx, bestD2=-1;
+  for(let i=peakIdx; i<=followSearchEnd; i++){
+    const d = Math.hypot(jointRel[i].x-peakPos.x, jointRel[i].y-peakPos.y);
+    if(d>bestD2){ bestD2=d; followIdx=i; }
+  }
+  return { setupIdx, takebackIdx, peakIdx, followIdx };
+}
+// 1つの山(=1投)の中から、リリース(=肩から最も腕が伸びている瞬間)を決め、
+// その前後からセットアップ・テイクバック・フォロースルーを特定する
+function extractThrowPhases(speeds, jointRel, env, stepT, prevBoundIdx, nextBoundIdx){
+  // リリース(ひじ位置)は「区間内で最も速い瞬間」ではなく「肩から最も腕が伸びている瞬間」とする。
+  // 投げ終わった直後に脱力して腕を戻す動きの方が、実際の投球より速くなることがあり、
+  // 速さだけで判定すると「投げ終わった後」を誤ってリリースと検出してしまうため。
+  // ただし「腕を真下まで下ろした脱力姿勢」も肩からの距離自体は大きくなる(腕の長さぶん離れる)ため、
+  // 区間開始時点(まだ脱力前、構え〜投球動作中)のY座標より大きく下に外れている点は候補から除外する。
+  const baselineY = jointRel[env.start].y;
+  let peakIdx = -1, peakExt=-1;
+  for(let i=env.start;i<=env.end;i++){
+    if(jointRel[i].y > baselineY + 1.0) continue;
+    const ext = Math.hypot(jointRel[i].x, jointRel[i].y);
+    if(ext>peakExt){ peakExt=ext; peakIdx=i; }
+  }
+  if(peakIdx===-1){
+    // 除外しすぎて候補が残らなかった場合のフォールバック(除外なしで選び直す)
+    peakIdx = env.start; peakExt=-1;
+    for(let i=env.start;i<=env.end;i++){
+      const ext = Math.hypot(jointRel[i].x, jointRel[i].y);
+      if(ext>peakExt){ peakExt=ext; peakIdx=i; }
+    }
+  }
+  return deriveAroundPeak(speeds, jointRel, peakIdx, prevBoundIdx, nextBoundIdx, stepT);
+}
+// 安全装置: 3投のリリース位置(手首の座標)を比べ、1つだけ他の2投から明らかに離れている場合、
+// その投だけ探索範囲を前後の投との間全体に広げ、「他の2投の位置に一番近い瞬間」を探し直す。
+// 既存ロジック(extractThrowPhases)はそのまま使い、結果がおかしい時だけ上書きする後付けの補正。
+function refineOutlierRelease(speeds, jointRel, throwPhaseIdx, envs, rangeStart, rangeEnd, stepT){
+  const positions = throwPhaseIdx.map(p => jointRel[p.peakIdx]);
+  const dist = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
+  const d01 = dist(positions[0],positions[1]);
+  const d02 = dist(positions[0],positions[2]);
+  const d12 = dist(positions[1],positions[2]);
+
+  const myAvgDist = [ (d01+d02)/2, (d01+d12)/2, (d02+d12)/2 ];
+  const otherPairDist = [ d12, d02, d01 ];
+
+  let outlierIdx=-1, worstRatio=2.2;
+  for(let i=0;i<3;i++){
+    if(otherPairDist[i] < 1e-6) continue;
+    const ratio = myAvgDist[i] / otherPairDist[i];
+    if(ratio > worstRatio){ worstRatio = ratio; outlierIdx = i; }
+  }
+  if(outlierIdx===-1) return throwPhaseIdx;
+
+  const others = positions.filter((_,i)=>i!==outlierIdx);
+  const target = { x:(others[0].x+others[1].x)/2, y:(others[0].y+others[1].y)/2 };
+
+  const prevBound = outlierIdx===0 ? rangeStart : envs[outlierIdx-1].end;
+  const nextBound = outlierIdx===2 ? rangeEnd : envs[outlierIdx+1].start;
+
+  // 他の投のpeakIdxの近く(±minGap以内)は候補から除外する
+  // 同じ瞬間や近すぎる瞬間を「外れ値の投」として引き当ててしまうのを防ぐ
+  const otherPeaks = throwPhaseIdx.filter((_,i)=>i!==outlierIdx).map(p=>p.peakIdx);
+  const minGap = Math.max(3, Math.round(0.4/stepT));
+
+  let bestI = -1, bestD = Infinity;
+  for(let i=prevBound; i<=nextBound; i++){
+    // 他の投と近すぎる時刻はスキップ
+    if(otherPeaks.some(op=>Math.abs(i-op)<minGap)) continue;
+    const d = dist(jointRel[i], target);
+    if(d<bestD){ bestD=d; bestI=i; }
+  }
+
+  // 除外しすぎて候補がなかった場合、または探し直した結果も他の投と近すぎる場合は元のまま返す
+  if(bestI===-1) return throwPhaseIdx;
+  if(otherPeaks.some(op=>Math.abs(bestI-op)<minGap)) return throwPhaseIdx;
+
+  const refined = deriveAroundPeak(speeds, jointRel, bestI, prevBound, nextBound, stepT);
+  const result = throwPhaseIdx.slice();
+  result[outlierIdx] = refined;
+  return result;
+}
+
+/* ============================== 解析の全体オーケストレーション ============================== */
+async function analyzeVideo(video){
+  setProcessingStatus('AIを準備しています…', 5);
+  try{ await ensureAI(); }
+  catch(e){
+    const err = new Error('ai load failed');
+    err.userMessage = 'AIの読み込みに失敗しました。通信環境（Wi-Fiなど）をご確認の上、もう一度お試しください。';
+    throw err;
+  }
+
+  setProcessingStatus('動画を解析しています…', 8);
+  const duration = video.duration;
+  const samples = await collectPoseSamples(video, (cur,dur)=>{
+    const p = dur>0 ? cur/dur : 0;
+    setProcessingStatus(`動画を解析しています… ${formatTime(cur)} / ${formatTime(dur)}`, 8 + p*65);
+  });
+
+  const side = pickArmSide(samples);
+  const wristSamples = samples[side+'Wrist'];
+  const elbowSamples = samples[side+'Elbow'];
+  if(wristSamples.length < 6){
+    const err = new Error('no person detected');
+    err.userMessage = '動画から投げ手の動きをうまく検出できませんでした。投げ手の上半身全体が映っている、なるべく安定したカメラの動画でお試しください。';
+    throw err;
+  }
+
+  setProcessingStatus('体の基準位置を計算しています…', 75);
+  const stepT = 1/15;
+  const bodyRef = computeBodyReference(samples, duration, stepT);
+  const wristRel = buildRelativeTrack(wristSamples, bodyRef);
+  const elbowRel = buildRelativeTrack(elbowSamples, bodyRef);
+
+  const speeds = [0];
+  for(let i=1;i<wristRel.length;i++){
+    speeds.push(Math.hypot(wristRel[i].x-wristRel[i-1].x, wristRel[i].y-wristRel[i-1].y)/stepT);
+  }
+  const smoothed = movingAverage(speeds, 4);
+
+  const stance = findStableStanceWindow(bodyRef.mids, stepT);
+  let rangeStart = stance.startIdx, rangeEnd = stance.endIdx;
+  const minGapSamples = Math.max(3, Math.round(0.6/stepT));
+  if(rangeEnd-rangeStart < minGapSamples*3){ rangeStart=0; rangeEnd=smoothed.length-1; }
+
+  setProcessingStatus('3投を特定しています…', 80);
+  let envs = chooseThreeThrowEnvelopes(smoothed, wristRel, rangeStart, rangeEnd, stepT);
+
+  const rawPhaseIdx = [];
+  for(let k=0;k<3;k++){
+    const env = envs[k];
+    const prevBound = k===0 ? rangeStart : envs[k-1].end;
+    const nextBound = k===2 ? rangeEnd : envs[k+1].start;
+    rawPhaseIdx.push(extractThrowPhases(smoothed, wristRel, env, stepT, prevBound, nextBound));
+  }
+  // 3投のリリース位置を比べ、1つだけ明らかに浮いている場合は探し直す(安全装置)
+  const throwPhaseIdx = refineOutlierRelease(smoothed, wristRel, rawPhaseIdx, envs, rangeStart, rangeEnd, stepT);
+
+  setProcessingStatus('セットアップのフレームを書き出しています…', 86);
+  for(let k=0;k<3;k++){
+    const idxMap = throwPhaseIdx[k];
+
+    // セットアップのみ画像を保存(参考表示用)。3局面はスコア計算用の座標だけで十分。
+    const setupT = clamp(idxMap.setupIdx*stepT, 0, duration);
+    video.currentTime = setupT; await waitSeeked(video);
+    const capSetup = captureFrame(video);
+    state.throws[k].setup = { dataURL:capSetup.dataURL, imgW:capSetup.w, imgH:capSetup.h, time:setupT };
+    setProcessingStatus('セットアップのフレームを書き出しています…', 86+((k+1)/3)*6);
+
+    // 軌跡(動画オーバーレイ用): 実際のフレーム座標(0-1)で、絶対時刻つきで保存する(手首+肩)
+    const shoulderSamplesSide = samples[side+'Shoulder'];
+    const nextBound = k===2 ? rangeEnd : envs[k+1].start;
+    const clipStartIdx = idxMap.setupIdx;
+    // 動画自体はフォロースルーまで(=腕が下に伸びていく様子も)そのまま再生する
+    const clipEndIdx = Math.min(nextBound, idxMap.followIdx + Math.round(0.15/stepT));
+    // 軌跡の線・マーカーはリリース(腕が伸び切った瞬間)の少し先で止める(評価の計算には影響しない、表示だけの調整)
+    const trajEndIdx = Math.min(clipEndIdx, idxMap.peakIdx + Math.round(0.12/stepT));
+    const traj = [];
+    for(let i=clipStartIdx; i<=trajEndIdx; i++){
+      if(i<0 || i>=wristRel.length) continue;
+      const t = i*stepT;
+      const wAbs = interpAt(wristSamples, t);
+      const sAbs = interpAt(shoulderSamplesSide, t);
+      traj.push({ t, x:wAbs.x, y:wAbs.y, sx:sAbs.x, sy:sAbs.y });
+    }
+    state.throws[k].trajectory = traj;
+    state.throws[k].releaseTime = clamp(idxMap.peakIdx*stepT, 0, duration);
+    state.throws[k].clipStart = clamp(clipStartIdx*stepT, 0, duration);
+    state.throws[k].clipEnd = clamp(clipEndIdx*stepT, 0, duration);
+
+    // モザイク用: クリップ全体(再生される範囲すべて)にわたる顔(鼻)の位置の軌跡と、
+    // 顔のおおよその大きさ(肩幅基準)を保存する
+    const faceTrack = [];
+    for(let i=clipStartIdx; i<=clipEndIdx; i++){
+      const t = i*stepT;
+      const n = interpAt(samples.nose, t);
+      faceTrack.push({ t, x:n.x, y:n.y });
+    }
+    state.throws[k].faceTrack = faceTrack;
+    state.throws[k].faceRadius = bodyRef.scale * 0.4;
+    const setupNose = interpAt(samples.nose, setupT);
+    state.throws[k].setupFace = { x:setupNose.x, y:setupNose.y };
+  }
+
+  // 手動編集用に、スタンス区間全体の手首・肩の相対座標と絶対座標、速度を保存する
+  // これにより任意のリリース時刻を指定するだけで再計算できる
+  const fullTrack = [];
+  for(let i=rangeStart; i<=rangeEnd; i++){
+    if(i<0 || i>=wristRel.length) continue;
+    const t = i*stepT;
+    const wAbs = interpAt(wristSamples, t);
+    const sAbs = interpAt(samples[side+'Shoulder'], t);
+    const nAbs = interpAt(samples.nose, t);
+    fullTrack.push({ t, x:wAbs.x, y:wAbs.y, rx:wristRel[i].x, ry:wristRel[i].y, sx:sAbs.x, sy:sAbs.y, nx:nAbs.x, ny:nAbs.y, spd:smoothed[i]||0 });
+  }
+  state._fullTrack = fullTrack;
+  state._rangeStart = rangeStart;
+  state._rangeEnd = rangeEnd;
+  state._stepT = stepT;
+  state._faceRadius = bodyRef.scale * 0.4;
+  state._duration = duration;
+  state._side = side;
+
+  setProcessingStatus('完了しました', 100);
+  const peakTimes = throwPhaseIdx.map(p=>clamp(p.peakIdx*stepT,0,duration));
+  return { peakTimes, duration, stanceStart: rangeStart*stepT, stanceEnd: rangeEnd*stepT };
+}
+
+/* ============================== 描画ユーティリティ ============================== */
+function drawDot(ctx,x,y,color,r){
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fillStyle=color; ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle='#14171A'; ctx.stroke();
+}
+function setupSimpleCanvas(canvas, cssW, cssH){
+  const dpr = window.devicePixelRatio || 1;
+  canvas.style.width = cssW+'px'; canvas.style.height = cssH+'px';
+  canvas.width = Math.round(cssW*dpr); canvas.height = Math.round(cssH*dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+// 顔の周辺にモザイクをかける。source(video/image)の正規化座標(0-1)で中心と半径を指定し、
+// dx,dy,dw,dhはそのsourceがメインcanvas上に描画されている範囲(contain後の位置・サイズ)。
+function drawMosaic(ctx, source, sourceW, sourceH, faceX, faceY, faceR, dx, dy, dw, dh){
+  if(!sourceW || !sourceH || !faceR) return;
+  const size = faceR*2.6;
+  const sx = clamp((faceX-size/2)*sourceW, 0, sourceW);
+  const sy = clamp((faceY-size*0.6)*sourceH, 0, sourceH);
+  const sw = Math.min(sourceW-sx, size*sourceW);
+  const sh = Math.min(sourceH-sy, size*sourceH);
+  if(sw<=2 || sh<=2) return;
+  if(!drawMosaic._tmp) drawMosaic._tmp = document.createElement('canvas');
+  const tmp = drawMosaic._tmp;
+  const block = 9;
+  if(tmp.width!==block) tmp.width = block;
+  if(tmp.height!==block) tmp.height = block;
+  const tctx = tmp.getContext('2d');
+  try{ tctx.drawImage(source, sx, sy, sw, sh, 0, 0, block, block); }catch(e){ return; }
+
+  const outX = dx + (sx/sourceW)*dw;
+  const outY = dy + (sy/sourceH)*dh;
+  const outW = (sw/sourceW)*dw;
+  const outH = (sh/sourceH)*dh;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(tmp, 0, 0, block, block, outX, outY, outW, outH);
+  ctx.restore();
+}
+
+/* ============================== 3投の重ね合わせ表示 ============================== */
+function setupOverlayCanvas(){
+  const canvas = document.getElementById('overlayCanvas');
+  if(!canvas) return;
+  const wrap = canvas.parentElement;
+  const cssW = Math.min(wrap.clientWidth || 300, 380);
+  const cssH = Math.round(cssW * 1.25);
+  setupSimpleCanvas(canvas, cssW, cssH);
+}
+function drawOverlayFrame(){
+  const canvas = document.getElementById('overlayCanvas');
+  if(!canvas || !canvas.width || !trajVideos.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.width/dpr, h = canvas.height/dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle = '#0d0f11';
+  ctx.fillRect(0,0,w,h);
+
+  const alphas = [0.95, 0.5, 0.5];
+  const layout = trajVideos.map(entry=>{
+    const v = entry.video;
+    const vw = v.videoWidth, vh = v.videoHeight;
+    if(!vw || !vh) return null;
+    const scale = Math.min(w/vw, h/vh);
+    const dw = vw*scale, dh = vh*scale;
+    return { dx:(w-dw)/2, dy:(h-dh)/2, dw, dh };
+  });
+
+  trajVideos.forEach((entry,i)=>{
+    const v = entry.video;
+    const L = layout[i];
+    if(!L || v.readyState < 2) return;
+    ctx.globalAlpha = alphas[i];
+    ctx.drawImage(v, L.dx, L.dy, L.dw, L.dh);
+  });
+  ctx.globalAlpha = 1;
+
+  trajVideos.forEach((entry,i)=>{
+    const L = layout[i];
+    if(!L) return;
+    const curT = entry.video.currentTime;
+    const pts = entry.traj.filter(p=>p.t<=curT);
+    if(!pts.length) return;
+    ctx.beginPath();
+    pts.forEach((p,pi)=>{
+      const x = L.dx + p.x*L.dw, y = L.dy + p.y*L.dh;
+      if(pi===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = THROW_COLORS[i];
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.9;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  if(mosaicEnabled){
+    trajVideos.forEach((entry,i)=>{
+      const L = layout[i];
+      const v = entry.video;
+      if(!L || v.readyState < 2) return;
+      const curT = v.currentTime;
+      const fpos = entry.faceTrack && entry.faceTrack.length ? interpAt(entry.faceTrack, curT) : null;
+      if(fpos) drawMosaic(ctx, v, v.videoWidth, v.videoHeight, fpos.x, fpos.y, entry.faceRadius, L.dx, L.dy, L.dw, L.dh);
+    });
+  }
+}
+// 手動で指定されたリリース時刻(releaseT)から1投分のすべてのデータを再計算する
+async function recomputeThrow(throwIdx, releaseT){
+  const ft = state._fullTrack;
+  if(!ft || !ft.length) return;
+  const stepT = state._stepT || (1/15);
+  const duration = state._duration || 60;
+
+  // fullTrackからwristRelとsmoothedを再構成
+  const jointRel = ft.map(p=>({x:p.rx, y:p.ry}));
+  const speeds = ft.map(p=>p.spd);
+
+  const rangeStart = 0;
+  const rangeEnd = ft.length-1;
+  const peakT = clamp(releaseT, ft[0].t, ft[ft.length-1].t);
+  const peakIdx = Math.round((peakT - ft[0].t) / stepT);
+  const clampedPeakIdx = clamp(peakIdx, 0, rangeEnd);
+
+  // 前後の投の区間を概算(編集対象の投を孤立して扱う)
+  const segLen = Math.floor(ft.length/3);
+  const prevBound = throwIdx===0 ? rangeStart : throwIdx*segLen;
+  const nextBound = throwIdx===2 ? rangeEnd : (throwIdx+1)*segLen;
+
+  const idxMap = deriveAroundPeak(speeds, jointRel, clampedPeakIdx, prevBound, nextBound, stepT);
+
+  // 各フレームの絶対座標に戻す変換
+  const absAt = (idx)=>{
+    const ci = clamp(idx, 0, ft.length-1);
+    return { x: ft[ci].x, y: ft[ci].y, sx: ft[ci].sx, sy: ft[ci].sy, nx: ft[ci].nx, ny: ft[ci].ny };
+  };
+
+  // setup画像: editVideoがすでに同じ動画をロード済みなのでそれを使う(tmpVid生成は廃止)
+  const editVideo = document.getElementById('editVideo');
+  const setupT2 = ft[clamp(idxMap.setupIdx,0,ft.length-1)].t;
+  if(editVideo && editVideo.readyState>=1){
+    const prevT = editVideo.currentTime;
+    editVideo.currentTime = setupT2;
+    await waitSeeked(editVideo);
+    const capSetup = captureFrame(editVideo);
+    state.throws[throwIdx].setup = { dataURL:capSetup.dataURL, imgW:capSetup.w, imgH:capSetup.h, time:setupT2 };
+    editVideo.currentTime = prevT; // シーク位置を戻しておく
+  }
+
+  const setupAbs = absAt(idxMap.setupIdx);
+  state.throws[throwIdx].setupFace = { x:setupAbs.nx, y:setupAbs.ny };
+
+  const clipStartIdx = idxMap.setupIdx;
+  const clipEndIdx = Math.min(rangeEnd, idxMap.followIdx + Math.round(0.15/stepT));
+  const trajEndIdx = Math.min(clipEndIdx, clampedPeakIdx + Math.round(0.12/stepT));
+  const traj = [];
+  for(let i=clipStartIdx; i<=trajEndIdx; i++){
+    const a = absAt(i);
+    traj.push({ t:ft[clamp(i,0,ft.length-1)].t, x:a.x, y:a.y, sx:a.sx, sy:a.sy });
+  }
+  state.throws[throwIdx].trajectory = traj;
+  state.throws[throwIdx].releaseTime = peakT;
+  state.throws[throwIdx].clipStart = ft[clamp(clipStartIdx,0,ft.length-1)].t;
+  state.throws[throwIdx].clipEnd = ft[clamp(clipEndIdx,0,ft.length-1)].t;
+
+  const faceTrack = [];
+  for(let i=clipStartIdx; i<=clipEndIdx; i++){
+    const a = absAt(i);
+    faceTrack.push({ t:ft[clamp(i,0,ft.length-1)].t, x:a.nx, y:a.ny });
+  }
+  state.throws[throwIdx].faceTrack = faceTrack;
+  state.throws[throwIdx].faceRadius = state._faceRadius || 0.18;
+}
+function renderTimelineSummary(peakTimes, duration, stanceStart, stanceEnd){
+  const track = document.getElementById('timelineTrack');
+  if(!track) return;
+  let html = '';
+  if(stanceStart!=null && stanceEnd!=null && duration>0){
+    const lp = clamp(stanceStart/duration*100,0,100);
+    const rp = clamp(stanceEnd/duration*100,0,100);
+    html += `<div class="timeline-stance" style="left:${lp}%;width:${Math.max(0,rp-lp)}%"></div>`;
+  }
+  html += peakTimes.map((t,i)=>{
+    const pct = duration>0 ? (t/duration*100) : 0;
+    return `<div class="timeline-mark" style="left:${pct}%;background:${THROW_COLORS[i]}"><span class="tlabel" style="color:${THROW_COLORS[i]}">投${i+1}</span></div>`;
+  }).join('');
+  track.innerHTML = html;
+}
+async function renderSetupReference(){
+  const row = document.getElementById('setupRefRow');
+  if(!row) return;
+  row.innerHTML = '';
+  const imgs = await Promise.all(state.throws.map(t=> t.setup ? loadImage(t.setup.dataURL) : null));
+  const availW = row.clientWidth || 300;
+  const gap = 8;
+  const cw = Math.max(50, Math.floor((availW-gap*2)/3));
+  state.throws.forEach((t,i)=>{
+    if(!t.setup) return;
+    const wrap=document.createElement('div'); wrap.className='setup-thumb';
+    const c=document.createElement('canvas');
+    const dpr=window.devicePixelRatio||1;
+    const ch=cw*(t.setup.imgH/t.setup.imgW);
+    c.style.width=cw+'px'; c.style.height=ch+'px';
+    c.width=Math.round(cw*dpr); c.height=Math.round(ch*dpr);
+    const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(imgs[i]) ctx.drawImage(imgs[i],0,0,cw,ch);
+    if(mosaicEnabled && imgs[i] && t.setupFace){
+      drawMosaic(ctx, imgs[i], imgs[i].width, imgs[i].height, t.setupFace.x, t.setupFace.y, t.faceRadius||0.18, 0,0,cw,ch);
+    }
+    wrap.appendChild(c);
+    const label=document.createElement('div'); label.className='setup-thumb-label';
+    label.textContent = THROW_LABELS[i];
+    wrap.appendChild(label);
+    row.appendChild(wrap);
+  });
+}
+
+/* ============================== 3列の動画+軌跡オーバーレイ ============================== */
+function syncTrajOverlay(entry){
+  const w = entry.video.clientWidth, h = entry.video.clientHeight;
+  if(!w || !h) return;
+  setupSimpleCanvas(entry.canvas, w, h);
+}
+function trajDrawLoop(){
+  trajVideos.forEach(entry=>{
+    const { video, canvas, traj, idx } = entry;
+    if(!canvas.width) return;
+    const dpr = window.devicePixelRatio||1;
+    const w = canvas.width/dpr, h = canvas.height/dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    const curT = video.currentTime;
+    const pts = traj.filter(p=>p.t<=curT);
+    if(pts.length){
+      ctx.beginPath();
+      pts.forEach((p,pi)=>{
+        const x=p.x*w, y=p.y*h;
+        if(pi===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.strokeStyle = THROW_COLORS[idx];
+      ctx.lineWidth = 2.5;
+      ctx.globalAlpha = 0.85;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      const last = pts[pts.length-1];
+      drawDot(ctx, last.sx*w, last.sy*h, '#ffffff', 3);
+      drawDot(ctx, last.x*w, last.y*h, THROW_COLORS[idx], 6);
+    }
+    if(mosaicEnabled && video.readyState>=2 && entry.faceTrack && entry.faceTrack.length){
+      const fpos = interpAt(entry.faceTrack, curT);
+      drawMosaic(ctx, video, video.videoWidth, video.videoHeight, fpos.x, fpos.y, entry.faceRadius, 0,0,w,h);
+    }
+  });
+  drawOverlayFrame();
+  trajRafId = requestAnimationFrame(trajDrawLoop);
+}
+function startTrajPlayback(){
+  if(!trajVideos.length) return;
+  clearInterval(window.__trajLoopInterval);
+  trajVideos.forEach(entry=>{
+    const v = entry.video;
+    v.playbackRate = 0.5;
+    const begin = ()=>{ v.currentTime = entry.clipStart; v.play().catch(()=>{}); };
+    if(v.readyState>=1) begin();
+    else v.addEventListener('loadedmetadata', begin, {once:true});
+  });
+  if(trajRafId) cancelAnimationFrame(trajRafId);
+  trajRafId = requestAnimationFrame(trajDrawLoop);
+
+  window.__trajLoopInterval = setInterval(()=>{
+    const allDone = trajVideos.length>0 && trajVideos.every(e=> e.video.paused && e.video.currentTime >= e.clipEnd-0.05);
+    if(allDone){
+      clearInterval(window.__trajLoopInterval);
+      if(document.getElementById('screen-results').classList.contains('active')){
+        setTimeout(startTrajPlayback, 700);
+      }
+    }
+  }, 200);
+}
+function teardownTrajVideos(){
+  clearInterval(window.__trajLoopInterval);
+  if(trajRafId){ cancelAnimationFrame(trajRafId); trajRafId=null; }
+  trajVideos.forEach(e=>{ try{ e.video.pause(); }catch(err){} });
+  trajVideos = [];
+}
+function setupTrajVideos(){
+  const row = document.getElementById('trajVideoRow');
+  if(!row) return;
+  teardownTrajVideos();
+  row.innerHTML = '';
+
+  const hiddenVideo = document.getElementById('hiddenVideo');
+  const fileURL = hiddenVideo ? hiddenVideo.dataset.objUrl : '';
+  if(!fileURL){
+    row.innerHTML = '<p class="traj-fallback-note">軌跡の再生には動画が必要です。お手数ですが同じ動画をもう一度アップロードしてください。</p>';
+    const oc = document.getElementById('overlayCanvas');
+    if(oc){ const ctx=oc.getContext('2d'); if(ctx) ctx.clearRect(0,0,oc.width,oc.height); }
+    return;
+  }
+
+  const availW = row.clientWidth || 300;
+  const gap = 8;
+  const colW = Math.max(60, Math.floor((availW-gap*2)/3));
+
+  trajVideos = state.throws.map((t,i)=>{
+    const col = document.createElement('div'); col.className='traj-col';
+    col.style.width = colW+'px';
+    const box = document.createElement('div'); box.className='traj-video-box';
+    const vid = document.createElement('video');
+    vid.playsInline = true;
+    vid.setAttribute('playsinline','');
+    vid.setAttribute('webkit-playsinline','true');
+    vid.muted = true;
+    vid.setAttribute('muted','');
+    vid.src = fileURL;
+    const canvas = document.createElement('canvas');
+    box.appendChild(vid); box.appendChild(canvas);
+    col.appendChild(box);
+    const label = document.createElement('div'); label.className='traj-col-label';
+    label.style.color = THROW_COLORS[i]; label.textContent = THROW_LABELS[i];
+    col.appendChild(label);
+    row.appendChild(col);
+
+    const entry = { video:vid, canvas, clipStart:t.clipStart, clipEnd:t.clipEnd, traj:t.trajectory||[], idx:i, faceTrack:t.faceTrack||[], faceRadius:t.faceRadius||0.18 };
+    vid.addEventListener('loadedmetadata', ()=>{
+      syncTrajOverlay(entry);
+      setupOverlayCanvas(); // 動画サイズが確定した後にoverlayCanvasのサイズを設定し直す
+    });
+    vid.addEventListener('timeupdate', ()=>{ if(vid.currentTime >= entry.clipEnd) vid.pause(); });
+    return entry;
+  });
+
+  setupOverlayCanvas();
+  startTrajPlayback();
+}
+
+async function renderComparePanel(){
+  const allDone = state.throws.every(t=>t.trajectory && t.trajectory.length>0);
+  if(!allDone) return;
+  await renderSetupReference();
+  setupTrajVideos();
+}
+
+/* ============================== 永続化 ============================== */
+async function saveSession(meta){
+  try{
+    const data = {
+      throws: state.throws.map(t=>({
+        setup:t.setup, trajectory:t.trajectory,
+        releaseTime:t.releaseTime, clipStart:t.clipStart, clipEnd:t.clipEnd,
+        faceTrack:t.faceTrack, faceRadius:t.faceRadius, setupFace:t.setupFace
+      })),
+      meta: meta||null
+    };
+    await window.storage.set(STORAGE_KEY, JSON.stringify(data), false);
+  }catch(e){ /* 保存できなくても致命的ではない */ }
+}
+async function loadSession(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value){
+      const data = JSON.parse(res.value);
+      if(Array.isArray(data.throws)){
+        data.throws.forEach((t,i)=>{
+          if(!state.throws[i] || !t) return;
+          if(t.setup) state.throws[i].setup = t.setup;
+          if(Array.isArray(t.trajectory)) state.throws[i].trajectory = t.trajectory;
+          if(t.releaseTime!=null) state.throws[i].releaseTime = t.releaseTime;
+          if(t.clipStart!=null) state.throws[i].clipStart = t.clipStart;
+          if(t.clipEnd!=null) state.throws[i].clipEnd = t.clipEnd;
+          if(Array.isArray(t.faceTrack)) state.throws[i].faceTrack = t.faceTrack;
+          if(t.faceRadius!=null) state.throws[i].faceRadius = t.faceRadius;
+          if(t.setupFace) state.throws[i].setupFace = t.setupFace;
+        });
+      }
+      if(data.meta) lastMeta = data.meta;
+    }
+  }catch(e){ /* セッションなし、または読み込み失敗 */ }
+}
+function startOver(){
+  teardownTrajVideos();
+  state = createInitialState();
+  lastMeta = null;
+  const em = document.getElementById('editModalBg');
+  if(em){ em.hidden = true; document.body.style.overflow = ''; }
+  const eb = document.getElementById('editBtn');
+  if(eb) eb.hidden = true;
+  const video = document.getElementById('hiddenVideo');
+  if(video){
+    video.pause();
+    if(video.dataset.objUrl) URL.revokeObjectURL(video.dataset.objUrl);
+    video.removeAttribute('src'); video.load();
+  }
+  const fi = document.getElementById('fileInput');
+  if(fi) fi.value = '';
+  window.storage && window.storage.delete && window.storage.delete(STORAGE_KEY, false).catch(()=>{});
+  showScreen('upload');
+}
+
+/* ============================== アップロード〜解析の制御 ============================== */
+async function handleUpload(file){
+  if(!file) return;
+  showScreen('processing');
+  setProcessingStatus('準備しています…', 2);
+  const video = document.getElementById('hiddenVideo');
+  const url = URL.createObjectURL(file);
+  if(video.dataset.objUrl) URL.revokeObjectURL(video.dataset.objUrl);
+  video.dataset.objUrl = url;
+  video.src = url;
+
+  try{
+    await waitMetadata(video);
+    await ensureDuration(video);
+    state = createInitialState();
+    const result = await analyzeVideo(video);
+    lastMeta = result;
+    await saveSession(result);
+    // 解析で使った非表示動画はもう不要なので、デコーダーを解放する
+    // (モバイル端末は同時にデコードできる動画の数に上限があり、これを解放しないと
+    //  3列ぶんの軌跡動画が黒いまま再生できないことがあるため)。
+    // dataset.objUrlは残すので、URL自体は3列ぶんの動画生成にそのまま使える。
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    showScreen('results');
+    renderTimelineSummary(result.peakTimes, result.duration, result.stanceStart, result.stanceEnd);
+    await renderComparePanel();
+    // 修正ボタンは現セッションで解析した時だけ表示(_fullTrackがある時=再計算可能な時)
+    const eb = document.getElementById('editBtn');
+    if(eb) eb.hidden = false;
+  }catch(err){
+    console.warn('analysis failed', err);
+    showScreen('error');
+    document.getElementById('errorDetail').textContent = err && err.userMessage
+      ? err.userMessage
+      : 'この動画は解析できませんでした。別の動画でもう一度お試しください。';
+  }
+}
+
+/* ============================== イベント配線 ============================== */
+function wireGlobalEvents(){
+  document.getElementById('uploadBtn').addEventListener('click', ()=>{
+    document.getElementById('fileInput').click();
+  });
+  document.getElementById('fileInput').addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    handleUpload(file);
+  });
+  document.getElementById('retryFromError').addEventListener('click', startOver);
+  document.getElementById('startOverBtn').addEventListener('click', startOver);
+  document.getElementById('trajPlayBtn').addEventListener('click', ()=>{
+    clearInterval(window.__trajLoopInterval);
+    startTrajPlayback();
+  });
+  document.getElementById('mosaicToggle').addEventListener('change', (e)=>{
+    mosaicEnabled = e.target.checked;
+    renderSetupReference();
+  });
+  // ---- 手動編集モーダル ----
+  let editThrowIdx = 0;
+  const editModal = document.getElementById('editModalBg');
+  const editVid = document.getElementById('editVideo');
+
+  function openEditModal(){
+    const fileURL = document.getElementById('hiddenVideo')?.dataset?.objUrl;
+    if(!fileURL){ alert('動画データが見つかりません。もう一度アップロードしてください。'); return; }
+    if(!editVid.src || editVid.dataset.src !== fileURL){
+      editVid.src = fileURL;
+      editVid.dataset.src = fileURL;
+    }
+    editModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    seekEditTo(editThrowIdx);
+  }
+  function closeEditModal(){
+    editModal.hidden = true;
+    document.body.style.overflow = '';
+    editVid.pause();
+  }
+  function seekEditTo(throwIdx){
+    editThrowIdx = throwIdx;
+    document.querySelectorAll('.edit-throw-tab').forEach(b=>{
+      b.classList.toggle('active', parseInt(b.dataset.throw)===throwIdx);
+    });
+    const releaseT = state.throws[throwIdx]?.releaseTime || 0;
+    const seekTo = ()=>{
+      editVid.currentTime = releaseT;
+      updateEditTime();
+    };
+    if(editVid.readyState>=1) seekTo();
+    else editVid.addEventListener('loadedmetadata', seekTo, {once:true});
+  }
+  function updateEditTime(){
+    const t=editVid.currentTime, d=editVid.duration||0;
+    const fmt=(v)=>{ const m=Math.floor(v/60),s=Math.floor(v%60); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; };
+    document.getElementById('editTime').textContent = `${fmt(t)} / ${fmt(d)}`;
+    if(d>0) document.getElementById('editSeek').value = Math.round(t/d*10000);
+  }
+
+  document.getElementById('editBtn').addEventListener('click', openEditModal);
+  document.getElementById('editCloseBtn').addEventListener('click', closeEditModal);
+  document.querySelectorAll('.edit-throw-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>seekEditTo(parseInt(btn.dataset.throw)));
+  });
+  editVid.addEventListener('timeupdate', updateEditTime);
+  editVid.addEventListener('play', ()=>{ document.getElementById('editPlayBtn').textContent='⏸'; });
+  editVid.addEventListener('pause', ()=>{ document.getElementById('editPlayBtn').textContent='▶'; });
+  document.getElementById('editPlayBtn').addEventListener('click', ()=>{
+    if(editVid.paused) editVid.play().catch(()=>{}); else editVid.pause();
+  });
+  document.getElementById('editStepBack').addEventListener('click', ()=>{
+    editVid.pause(); editVid.currentTime = Math.max(0, editVid.currentTime - 1/30);
+  });
+  document.getElementById('editStepFwd').addEventListener('click', ()=>{
+    editVid.pause(); editVid.currentTime = Math.min(editVid.duration||99, editVid.currentTime + 1/30);
+  });
+  document.getElementById('editSeek').addEventListener('input', (e)=>{
+    if(!editVid.duration) return;
+    editVid.currentTime = parseInt(e.target.value)/10000 * editVid.duration;
+  });
+  document.getElementById('editConfirmBtn').addEventListener('click', async ()=>{
+    const t = editVid.currentTime;
+    const saving = document.getElementById('editSaving');
+    saving.hidden = false;
+    editVid.pause();
+    await recomputeThrow(editThrowIdx, t);
+    closeEditModal();
+    saving.hidden = true;
+    // 結果を再描画
+    await renderSetupReference();
+    setupTrajVideos();
+    if(lastMeta){
+      lastMeta.peakTimes[editThrowIdx] = t;
+      renderTimelineSummary(lastMeta.peakTimes, lastMeta.duration, lastMeta.stanceStart, lastMeta.stanceEnd);
+    }
+  });
+  window.addEventListener('resize', ()=>{
+    const resultsActive = document.getElementById('screen-results').classList.contains('active');
+    if(resultsActive){
+      renderSetupReference();
+      setupTrajVideos();
+    }
+  });
+}
+
+/* ============================== 初期化 ============================== */
+async function init(){
+  state = createInitialState();
+  await loadSession();
+  wireGlobalEvents();
+  const hasResults = state.throws.every(t=>t.trajectory && t.trajectory.length>0);
+  if(hasResults){
+    showScreen('results');
+    if(lastMeta) renderTimelineSummary(lastMeta.peakTimes, lastMeta.duration, lastMeta.stanceStart, lastMeta.stanceEnd);
+    await renderComparePanel();
+  }else{
+    showScreen('upload');
+  }
+}
+init();
+</script>
+</body>
+</html>
