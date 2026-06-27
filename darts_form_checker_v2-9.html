@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ダーツ・フォーム チェッカー</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#14171A;
+    --surface:#1E2227;
+    --surface2:#242830;
+    --border:#2C3137;
+    --border-soft:#23272C;
+    --text:#ECEFF2;
+    --text-dim:#9AA3AC;
+    --text-faint:#6B7480;
+    --accent:#3FCF8E;
+    --t1:#E2484B;
+    --t2:#4C8DFF;
+    --t3:#F2B134;
+    --good:#3FCF8E;
+    --ok:#7FD17A;
+    --warn:#F2B134;
+    --bad:#E2484B;
+    --font-ui: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Roboto Mono", Consolas, monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(ellipse at top, #1a1e22 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:var(--font-ui);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+  .app{max-width:480px;margin:0 auto;padding:14px 14px 0;}
+
+  /* ---- header ---- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 12px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand h1{font-size:17px;margin:0;}
+  .brand .sub{font-size:11px;color:var(--text-faint);margin:1px 0 0;}
+  .ver{font-size:10px;color:var(--text-faint);font-family:var(--font-mono);background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 6px;}
+
+  /* ---- モード切替 ---- */
+  .mode-tabs{display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .mode-tab{flex:1;background:var(--surface);color:var(--text-dim);border:none;padding:11px 4px;font-size:13px;font-family:var(--font-ui);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .mode-tab:first-child{border-right:1px solid var(--border);}
+  .mode-tab.active{background:var(--surface2);color:var(--text);}
+  .mode-tab .mode-icon{font-size:18px;}
+  .mode-tab .mode-label{font-size:11px;}
+
+  details.help{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 13px;margin-bottom:14px;font-size:12.5px;color:var(--text-dim);}
+  details.help summary{cursor:pointer;color:var(--text);font-size:13px;font-weight:600;outline:none;}
+  details.help ol{margin:9px 0 6px;padding-left:18px;}
+  details.help li{margin-bottom:5px;line-height:1.5;}
+  details.help .note{color:var(--text-faint);font-size:11.5px;line-height:1.6;margin:8px 0 2px;border-top:1px solid var(--border-soft);padding-top:8px;}
+
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  /* ---- upload ---- */
+  .upload-zone{background:var(--surface);border:1.5px dashed var(--border);border-radius:14px;padding:34px 16px;text-align:center;}
+  .upload-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px 20px;font-size:14.5px;font-family:var(--font-ui);display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;}
+  .upload-zone .hint{font-size:11.5px;color:var(--text-faint);margin:14px 0 0;line-height:1.6;}
+
+  /* ---- processing ---- */
+  .processing-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px 22px;text-align:center;}
+  .processing-video{display:block;max-width:150px;max-height:150px;width:auto;height:auto;margin:0 auto 18px;border-radius:10px;background:#000;}
+  .spinner{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto 16px;animation:spin .9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .processing-status{font-size:13px;color:var(--text-dim);margin:0 0 16px;min-height:18px;line-height:1.5;}
+  .processing-track{height:6px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+  .processing-bar{height:100%;width:0%;background:var(--accent);transition:width .25s ease;}
+
+  /* ---- error ---- */
+  .error-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px 22px;text-align:center;}
+  .error-title{color:var(--bad);font-size:14.5px;font-weight:700;margin:0 0 8px;}
+  .error-detail{font-size:12.5px;color:var(--text-dim);line-height:1.6;margin:0 0 18px;}
+
+  /* ---- buttons ---- */
+  .primary-btn{background:var(--accent);color:#0b1410;border:none;border-radius:10px;padding:11px 20px;font-size:13.5px;font-weight:700;font-family:var(--font-ui);cursor:pointer;}
+  .ghost-btn{background:transparent;border:1px solid var(--border);color:var(--text-faint);border-radius:9px;padding:9px 16px;font-size:12px;font-family:var(--font-ui);cursor:pointer;}
+  .edit-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);border-radius:9px;padding:10px 18px;font-size:13px;font-family:var(--font-ui);cursor:pointer;}
+
+  /* ---- timeline ---- */
+  .timeline-summary{margin-bottom:18px;}
+  .timeline-track{position:relative;height:26px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);margin-bottom:20px;overflow:hidden;}
+  .timeline-stance{position:absolute;top:0;bottom:0;background:rgba(63,207,142,0.18);border-left:1px dashed rgba(63,207,142,0.5);border-right:1px dashed rgba(63,207,142,0.5);}
+  .timeline-mark{position:absolute;top:-3px;bottom:-3px;width:3px;border-radius:2px;transform:translateX(-50%);}
+  .timeline-mark .tlabel{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;font-size:10px;font-family:var(--font-mono);font-weight:700;white-space:nowrap;}
+  .timeline-caption{font-size:10.5px;color:var(--text-faint);text-align:center;margin:0;}
+
+  /* ---- setup ref ---- */
+  .setup-ref{margin-bottom:18px;opacity:.88;}
+  .setup-ref-title{font-size:11px;color:var(--text-faint);margin:0 0 8px;}
+  .setup-ref-row{display:flex;gap:8px;}
+  .setup-thumb{flex:1;text-align:center;min-width:0;}
+  .setup-thumb canvas{border-radius:7px;border:1px solid var(--border-soft);display:block;}
+  .setup-thumb-label{font-size:9.5px;color:var(--text-faint);margin-top:3px;}
+
+  /* ---- trajectory card ---- */
+  .trajectory-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;text-align:center;}
+  .trajectory-card h3{font-size:13.5px;margin:0 0 12px;color:var(--text);text-align:left;}
+  .traj-video-row{display:flex;gap:8px;justify-content:center;margin-bottom:14px;}
+  .traj-col{flex:none;text-align:center;}
+  .traj-video-box{position:relative;}
+  .traj-video-box video{display:block;width:100%;height:auto;border-radius:8px;background:#000;}
+  .traj-video-box canvas{position:absolute;top:0;left:0;pointer-events:none;}
+  .traj-col-label{font-size:10.5px;font-weight:700;margin-top:5px;}
+  .traj-fallback-note{font-size:12px;color:var(--text-faint);padding:14px 6px;}
+  .traj-caption{font-size:10.5px;color:var(--text-faint);line-height:1.5;margin:10px 2px 0;}
+  .traj-canvas-wrap{display:flex;justify-content:center;background:#0d0f11;border-radius:10px;overflow:hidden;margin-bottom:12px;}
+
+  /* ---- app footer ---- */
+  .app-footer{padding:10px 2px 30px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;}
+
+  /* ---- edit modal ---- */
+  .edit-modal-bg{position:fixed;inset:0;background:rgba(8,9,10,.82);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+  .edit-modal-bg:not([hidden]){display:flex;}
+  .edit-modal{background:var(--bg);border-top:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:16px 16px 32px;max-height:95vh;overflow-y:auto;}
+  .edit-modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .edit-modal-title{font-size:14px;font-weight:700;color:var(--text);}
+  .edit-close-btn{background:transparent;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;padding:2px 6px;}
+  .edit-throw-tabs{display:flex;gap:6px;margin-bottom:12px;}
+  .edit-throw-tab{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:8px;font-size:13px;font-family:var(--font-ui);cursor:pointer;}
+  .edit-throw-tab.active{border-color:var(--accent);color:var(--text);background:var(--surface2);}
+  .edit-hint{font-size:11.5px;color:var(--text-faint);line-height:1.6;margin:0 0 12px;}
+  .edit-video-wrap{background:#000;border-radius:10px;overflow:hidden;margin-bottom:10px;text-align:center;}
+  .edit-video-wrap video{max-width:100%;max-height:42vh;display:block;margin:0 auto;}
+  .edit-scrub{margin-bottom:6px;}
+  .edit-scrub input{width:100%;accent-color:var(--accent);}
+  .edit-time{font-size:11px;font-family:var(--font-mono);color:var(--text-faint);text-align:center;margin-top:2px;}
+  .edit-step-btns{display:flex;gap:8px;margin-bottom:14px;}
+  .edit-step-btns button{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-size:13px;font-family:var(--font-ui);cursor:pointer;}
+  .edit-confirm-btn{width:100%;background:var(--accent);color:#0b1410;border:none;border-radius:10px;padding:13px;font-size:14.5px;font-weight:700;font-family:var(--font-ui);cursor:pointer;}
+  .edit-saving{font-size:12px;color:var(--text-faint);text-align:center;margin-top:10px;}
+
+  /* ---- リアルタイムモード（全画面） ---- */
+  .rt-start-wrap{text-align:center;padding:30px 0;}
+  .rt-start-btn{background:var(--accent);color:#0b1410;border:none;border-radius:12px;padding:14px 28px;font-size:15px;font-weight:700;font-family:var(--font-ui);cursor:pointer;}
+  .rt-start-hint{font-size:11.5px;color:var(--text-faint);margin-top:12px;line-height:1.6;}
+
+  /* 全画面オーバーレイ */
+  #rtFullscreen{
+    position:fixed;inset:0;z-index:200;background:#000;
+    display:none;flex-direction:column;
+    pointer-events:none;
+  }
+  #rtFullscreen.active{display:flex;pointer-events:auto;}
+  #rtVideo{
+    position:absolute;inset:0;width:100%;height:100%;
+    object-fit:cover;
+  }
+  #rtCanvas{
+    position:absolute;inset:0;width:100%;height:100%;
+    pointer-events:none;
+  }
+  .rt-ui{
+    position:absolute;bottom:0;left:0;right:0;
+    padding:14px 16px 36px;
+    background:linear-gradient(transparent,rgba(0,0,0,0.7));
+    display:flex;flex-direction:column;gap:10px;
+    z-index:10;
+  }
+  .rt-legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}
+  .rt-legend span{display:flex;align-items:center;gap:5px;font-size:12px;color:rgba(255,255,255,0.85);}
+  .rt-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .rt-status{font-size:11.5px;color:rgba(255,255,255,0.7);text-align:center;}
+  .rt-controls{display:flex;gap:10px;}
+  .rt-reset-btn{flex:1;background:rgba(255,255,255,0.18);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.25);color:#fff;border-radius:10px;padding:12px;font-size:14px;font-family:var(--font-ui);cursor:pointer;}
+  .rt-stop-btn{flex:1;background:var(--bad);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-family:var(--font-ui);cursor:pointer;font-weight:700;}
+
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important;} }
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="20" fill="none" stroke="#2C3137" stroke-width="2"/>
+        <circle cx="24" cy="24" r="13" fill="none" stroke="#3a4047" stroke-width="2"/>
+        <circle cx="24" cy="24" r="6" fill="none" stroke="#3FCF8E" stroke-width="2"/>
+        <circle cx="24" cy="24" r="2" fill="#F2B134"/>
+      </svg>
+      <div>
+        <h1>フォーム チェッカー</h1>
+        <p class="sub">ダーツ投球フォーム分析</p>
+      </div>
+    </div>
+    <span class="ver">ver.2.08</span>
+  </header>
+
+  <!-- モード切替 -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="modeAnalyze">
+      <span class="mode-icon">🎬</span>
+      <span class="mode-label">録画解析</span>
+    </button>
+    <button class="mode-tab" id="modeRealtime">
+      <span class="mode-icon">📷</span>
+      <span class="mode-label">リアルタイム</span>
+    </button>
+  </div>
+
+  <main>
+
+    <!-- ========== 録画解析モード ========== -->
+    <div id="analyzeMode">
+
+      <details class="help">
+        <summary>使い方（録画解析）</summary>
+        <ol>
+          <li>ダーツを3投投げている動画を1本アップロードします。</li>
+          <li>あとは自動です。肩・ひじ・手首の動きから3投を見つけ、セットアップ〜フォロースルーを自動で判定します。</li>
+          <li>解析が終わると、3投の手首の軌跡を重ねて再生できます。</li>
+        </ol>
+        <p class="note">※ カメラを固定し、横から投げ手の上半身全体が映るように撮影すると検出精度が上がります。通信環境はWi-Fiを推奨します。</p>
+      </details>
+
+      <section class="screen active" id="screen-upload">
+        <div class="upload-zone">
+          <button class="upload-btn" id="uploadBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4l-5 5M12 4l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            動画を選択
+          </button>
+          <input type="file" accept="video/*" id="fileInput" hidden>
+          <p class="hint">スマホで撮影した、ダーツを3投投げている動画（1本）<br>アップロードするだけで自動的に分析します</p>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-processing">
+        <div class="processing-card">
+          <video id="hiddenVideo" class="processing-video" playsinline webkit-playsinline="true" muted></video>
+          <div class="spinner"></div>
+          <p class="processing-status" id="processingStatus">準備しています…</p>
+          <div class="processing-track"><div class="processing-bar" id="processingBar"></div></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-error">
+        <div class="error-card">
+          <p class="error-title">解析できませんでした</p>
+          <p class="error-detail" id="errorDetail">-</p>
+          <button class="primary-btn" id="retryFromError">もう一度試す</button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-results">
+        <div class="timeline-summary">
+          <div class="timeline-track" id="timelineTrack"></div>
+          <p class="timeline-caption">検出した3投の位置（緑の帯＝構えに入っていると判定した区間）</p>
+        </div>
+        <div class="setup-ref" id="setupRef">
+          <p class="setup-ref-title">セットアップの基準（各投の構え始め・参考表示）</p>
+          <div class="setup-ref-row" id="setupRefRow"></div>
+        </div>
+        <div class="trajectory-card">
+          <h3>軌跡の比較</h3>
+          <div class="traj-video-row" id="trajVideoRow"></div>
+          <button class="primary-btn" id="trajPlayBtn">もう一度再生</button>
+          <p class="traj-caption">線＝手首の軌道、小さい白い点＝肩。3投ともセットアップの瞬間からそろえて、スロー再生しています。</p>
+        </div>
+        <div class="trajectory-card">
+          <h3>3投の重ね合わせ</h3>
+          <div class="traj-canvas-wrap"><canvas id="overlayCanvas"></canvas></div>
+          <p class="traj-caption">3投の動画を透明度を変えて重ねています。動きが揃っていれば重なってクッキリ、ズレていればぼやけて見えます。</p>
+        </div>
+        <div class="app-footer">
+          <button class="edit-btn" id="editBtn" hidden>投げた瞬間を修正する</button>
+          <button class="ghost-btn" id="startOverBtn">別の動画でやり直す</button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ========== リアルタイムモード ========== -->
+    <div id="realtimeMode" hidden>
+
+      <details class="help">
+        <summary>使い方（リアルタイム）</summary>
+        <ol>
+          <li>「カメラを起動」を押します。</li>
+          <li>グリッドと関節の位置がカメラ映像の上に重なって表示されます。</li>
+          <li>何投も投げると、肩・ひじ・手首の位置が蓄積されます。同じ場所を通るほど点が濃くなります。</li>
+          <li>次に構えるとき、自分の体を濃い点の位置に合わせる練習ができます。</li>
+        </ol>
+        <p class="note">※ Wi-Fi環境を推奨します（AI読み込みのため）。</p>
+      </details>
+
+      <div id="rtStartWrap" class="rt-start-wrap">
+        <button class="rt-start-btn" id="rtStartBtn">📷 カメラを起動</button>
+        <p class="rt-start-hint"> </p>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- 手動編集モーダル -->
+<div class="edit-modal-bg" id="editModalBg" hidden>
+  <div class="edit-modal">
+    <div class="edit-modal-header">
+      <span class="edit-modal-title">投げた瞬間を修正</span>
+      <button class="edit-close-btn" id="editCloseBtn">✕</button>
+    </div>
+    <div class="edit-throw-tabs">
+      <button class="edit-throw-tab active" data-throw="0">投1</button>
+      <button class="edit-throw-tab" data-throw="1">投2</button>
+      <button class="edit-throw-tab" data-throw="2">投3</button>
+    </div>
+    <p class="edit-hint">動画をコマ送りして「リリース（ダーツを放した瞬間）」に合わせ、「この瞬間で確定」を押してください。</p>
+    <div class="edit-video-wrap">
+      <video id="editVideo" playsinline webkit-playsinline="true" muted></video>
+    </div>
+    <div class="edit-scrub">
+      <input type="range" id="editSeek" min="0" max="10000" value="0">
+      <div class="edit-time" id="editTime">00:00 / 00:00</div>
+    </div>
+    <div class="edit-step-btns">
+      <button id="editStepBack">◁ コマ</button>
+      <button id="editPlayBtn">▶</button>
+      <button id="editStepFwd">コマ ▷</button>
+    </div>
+    <button class="edit-confirm-btn" id="editConfirmBtn">この瞬間で確定</button>
+    <p class="edit-saving" id="editSaving" hidden>再計算中…</p>
+  </div>
+</div>
+
+<!-- 全画面カメラUI: scriptより前に置くことでinit()実行時にDOMに確実に存在させる -->
+<div id="rtFullscreen">
+  <video id="rtVideo" playsinline webkit-playsinline="true" muted autoplay></video>
+  <canvas id="rtCanvas"></canvas>
+  <div class="rt-ui">
+    <div class="rt-legend">
+      <span><i style="background:#ECEFF2"></i>肩</span>
+      <span><i style="background:#F2B134"></i>ひじ</span>
+      <span><i style="background:#E2484B"></i>手首</span>
+    </div>
+    <p class="rt-status" id="rtStatus">AIを準備しています…</p>
+    <div class="rt-controls">
+      <button class="rt-reset-btn" id="rtResetBtn">🔄 リセット</button>
+      <button class="rt-reset-btn" id="rtFlipBtn">📷 外/内</button>
+      <button class="rt-stop-btn" id="rtStopBtn">✕ 閉じる</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/human/3.3.6/human.js"></script>
+<script>
+/* ============================== 定数 ============================== */
+const THROW_COLORS = ['#E2484B','#4C8DFF','#F2B134'];
+const THROW_LABELS = ['投1','投2','投3'];
+const STORAGE_KEY = 'darts_form_session_v8';
+const JOINT_COLORS = { shoulder:'#ECEFF2', elbow:'#F2B134', wrist:'#E2484B' };
+
+/* ============================== 状態 ============================== */
+let state = null;
+let lastMeta = null;
+let human = null;
+let aiLoaded = false;
+let trajRafId = null;
+let trajVideos = [];
+let rtStream = null;
+let rtRafId = null;
+let rtAccum = null; // ヒートマップ蓄積用canvas
+let rtFacing = 'user'; // 'user'=内側(デフォルト) / 'environment'=外側
+const imgCache = new Map();
+
+function createInitialState(){
+  return { throws: [1,2,3].map(()=>({ setup:null, trajectory:[], releaseTime:0, clipStart:0, clipEnd:0 })) };
+}
+
+/* ============================== ユーティリティ ============================== */
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function formatTime(t){
+  if(!isFinite(t) || t<0) return '00:00';
+  const m = Math.floor(t/60), s = Math.floor(t%60);
+  const pad=(v)=>String(v).padStart(2,'0');
+  return `${pad(m)}:${pad(s)}`;
+}
+function loadImage(src){
+  if(!src) return Promise.resolve(null);
+  if(imgCache.has(src)) return Promise.resolve(imgCache.get(src));
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>{ imgCache.set(src,img); resolve(img); };
+    img.onerror = ()=>resolve(null);
+    img.src = src;
+  });
+}
+function showScreen(name){
+  document.querySelectorAll('#analyzeMode .screen').forEach(s=>{ s.classList.toggle('active', s.id==='screen-'+name); });
+}
+function setProcessingStatus(text, pct){
+  const s=document.getElementById('processingStatus'); if(s) s.textContent=text;
+  if(pct!=null){ const b=document.getElementById('processingBar'); if(b) b.style.width=clamp(pct,0,100)+'%'; }
+}
+
+/* ============================== 動画の準備 ============================== */
+function waitMetadata(video){
+  return new Promise((resolve,reject)=>{
+    const onMeta=()=>{cleanup(); resolve();};
+    const onErr=()=>{cleanup(); reject(new Error('video load error'));};
+    function cleanup(){ video.removeEventListener('loadedmetadata',onMeta); video.removeEventListener('error',onErr); }
+    video.addEventListener('loadedmetadata', onMeta, {once:true});
+    video.addEventListener('error', onErr, {once:true});
+  });
+}
+function ensureDuration(video){
+  return new Promise((resolve)=>{
+    if(isFinite(video.duration) && video.duration>0){ resolve(); return; }
+    function onUpdate(){
+      if(isFinite(video.duration) && video.duration>0){
+        video.removeEventListener('timeupdate', onUpdate);
+        video.currentTime = 0;
+        resolve();
+      }
+    }
+    video.addEventListener('timeupdate', onUpdate);
+    video.currentTime = 1e7;
+    setTimeout(()=>{ video.removeEventListener('timeupdate', onUpdate); video.currentTime=0; resolve(); }, 1500);
+  });
+}
+function waitSeeked(video){
+  return new Promise(resolve=>{
+    let done=false;
+    const handler=()=>{ if(done) return; done=true; video.removeEventListener('seeked',handler); resolve(); };
+    video.addEventListener('seeked', handler, {once:true});
+    setTimeout(handler, 900);
+  });
+}
+function captureFrame(video){
+  const vw = video.videoWidth || 640, vh = video.videoHeight || 360;
+  const maxDim = 640;
+  const scale = Math.min(1, maxDim/Math.max(vw,vh));
+  const cw = Math.max(1, Math.round(vw*scale)), ch = Math.max(1, Math.round(vh*scale));
+  const off = document.createElement('canvas');
+  off.width = cw; off.height = ch;
+  off.getContext('2d').drawImage(video, 0, 0, cw, ch);
+  return { w: cw, h: ch, dataURL: off.toDataURL('image/jpeg', 0.82) };
+}
+function captureFrameCanvas(video, maxDim){
+  const vw = video.videoWidth || 640, vh = video.videoHeight || 360;
+  const scale = Math.min(1, maxDim/Math.max(vw,vh));
+  const cw = Math.max(1, Math.round(vw*scale)), ch = Math.max(1, Math.round(vh*scale));
+  if(!captureFrameCanvas._c) captureFrameCanvas._c = document.createElement('canvas');
+  const c = captureFrameCanvas._c;
+  if(c.width!==cw) c.width = cw;
+  if(c.height!==ch) c.height = ch;
+  c.getContext('2d').drawImage(video, 0, 0, cw, ch);
+  return c;
+}
+
+/* ============================== AI ============================== */
+async function ensureAI(){
+  if(aiLoaded) return;
+  if(typeof Human === 'undefined') throw new Error('human.js not available');
+  human = new Human.Human({
+    modelBasePath: 'https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/models/',
+    backend: 'webgl',
+    face:{enabled:false}, hand:{enabled:false}, object:{enabled:false},
+    gesture:{enabled:false}, segmentation:{enabled:false}, filter:{enabled:false},
+    body:{enabled:true}
+  });
+  await Promise.race([
+    human.load(),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 20000))
+  ]);
+  await human.warmup();
+  aiLoaded = true;
+}
+
+/* ============================== 解析ロジック ============================== */
+function interpAt(samples, t){
+  if(!samples.length) return {x:0.5,y:0.5};
+  if(t<=samples[0].t) return {x:samples[0].x, y:samples[0].y};
+  const last=samples[samples.length-1];
+  if(t>=last.t) return {x:last.x, y:last.y};
+  for(let i=0;i<samples.length-1;i++){
+    const a=samples[i], b=samples[i+1];
+    if(a.t<=t && b.t>=t){
+      const f = (b.t-a.t)>0 ? (t-a.t)/(b.t-a.t) : 0;
+      return {x:a.x+(b.x-a.x)*f, y:a.y+(b.y-a.y)*f};
+    }
+  }
+  return {x:last.x, y:last.y};
+}
+function movingAverage(arr, w){
+  const out = new Array(arr.length).fill(0);
+  for(let i=0;i<arr.length;i++){
+    let s=0,c=0;
+    for(let j=Math.max(0,i-w); j<=Math.min(arr.length-1,i+w); j++){ s+=arr[j]; c++; }
+    out[i] = s/c;
+  }
+  return out;
+}
+function pickArmSide(samples){
+  const totalMotion=(arr)=>{
+    let s=0;
+    for(let i=1;i<arr.length;i++) s+=Math.hypot(arr[i].x-arr[i-1].x, arr[i].y-arr[i-1].y);
+    return s;
+  };
+  return totalMotion(samples.rightWrist) >= totalMotion(samples.leftWrist) ? 'right' : 'left';
+}
+function computeBodyReference(samples, duration, stepT){
+  const ls=samples.leftShoulder, rs=samples.rightShoulder;
+  const widths=[];
+  ls.forEach(lp=>{ if(rs.length){ const rp=interpAt(rs,lp.t); widths.push(Math.hypot(lp.x-rp.x,lp.y-rp.y)); } });
+  let scale=0.18;
+  if(widths.length>=3){ const sorted=widths.slice().sort((a,b)=>a-b); const med=sorted[Math.floor(sorted.length/2)]; if(med>0.03) scale=med; }
+  const mids=[];
+  for(let t=0; t<=duration+1e-9; t+=stepT){
+    const l=ls.length?interpAt(ls,t):null, r=rs.length?interpAt(rs,t):null;
+    mids.push((l&&r)?{x:(l.x+r.x)/2,y:(l.y+r.y)/2}:(l||r||{x:0.5,y:0.5}));
+  }
+  return { scale, mids, stepT };
+}
+function buildRelativeTrack(jointSamples, bodyRef){
+  const { mids, stepT, scale }=bodyRef;
+  const out=[];
+  for(let i=0;i<mids.length;i++){
+    const t=i*stepT, p=jointSamples.length?interpAt(jointSamples,t):mids[i];
+    out.push({ t, x:(p.x-mids[i].x)/scale, y:(p.y-mids[i].y)/scale });
+  }
+  return out;
+}
+function findStableStanceWindow(mids, stepT){
+  if(mids.length<6) return { startIdx:0, endIdx:mids.length-1 };
+  const moves=[0];
+  for(let i=1;i<mids.length;i++) moves.push(Math.hypot(mids[i].x-mids[i-1].x,mids[i].y-mids[i-1].y)/stepT);
+  const smoothed=movingAverage(moves,5);
+  const sorted=smoothed.slice().sort((a,b)=>a-b);
+  const threshold=(sorted[Math.floor(sorted.length*0.5)]||0.001)*1.8;
+  let bestStart=0,bestLen=0,curStart=0,curLen=0;
+  for(let i=0;i<smoothed.length;i++){
+    if(smoothed[i]<=threshold){ if(curLen===0) curStart=i; curLen++; if(curLen>bestLen){bestLen=curLen;bestStart=curStart;} } else curLen=0;
+  }
+  if(bestLen<smoothed.length*0.2) return { startIdx:0, endIdx:smoothed.length-1 };
+  const pad=Math.round(0.3/stepT);
+  return { startIdx:Math.max(0,bestStart-pad), endIdx:Math.min(smoothed.length-1,bestStart+bestLen-1+pad) };
+}
+function findPeaks(speeds, minGapSamples, count, rangeStart, rangeEnd){
+  rangeStart=rangeStart||0; rangeEnd=(rangeEnd==null)?speeds.length-1:rangeEnd;
+  const candidates=[];
+  for(let i=Math.max(1,rangeStart);i<Math.min(speeds.length-1,rangeEnd);i++){
+    if(speeds[i]>=speeds[i-1]&&speeds[i]>=speeds[i+1]&&speeds[i]>0) candidates.push({i,v:speeds[i]});
+  }
+  candidates.sort((a,b)=>b.v-a.v);
+  let chosen=[];
+  for(const c of candidates){
+    if(chosen.every(ch=>Math.abs(ch.i-c.i)>=minGapSamples)){ chosen.push(c); if(chosen.length>=count) break; }
+  }
+  if(chosen.length<count){
+    const lo=Math.max(0,rangeStart), hi=Math.min(speeds.length-1,rangeEnd);
+    const segLen=Math.max(1,Math.floor((hi-lo+1)/count));
+    const forced=[];
+    for(let s=0;s<count;s++){
+      const start=lo+s*segLen, end=s===count-1?hi:Math.min(hi,lo+(s+1)*segLen-1);
+      let bestI=start,bestV=-1;
+      for(let i=start;i<=end;i++){if(speeds[i]>bestV){bestV=speeds[i];bestI=i;}}
+      forced.push({i:bestI,v:bestV});
+    }
+    chosen=forced;
+  }
+  chosen.sort((a,b)=>a.i-b.i);
+  return chosen;
+}
+function findEnvelopes(speeds, rangeStart, rangeEnd){
+  const seg=[]; for(let i=rangeStart;i<=rangeEnd;i++) seg.push(speeds[i]);
+  const sorted=seg.slice().sort((a,b)=>a-b);
+  const median=sorted[Math.floor(sorted.length*0.5)]||0;
+  const threshold=Math.max(median*2.6,0.06);
+  const envs=[]; let curStart=-1;
+  for(let i=rangeStart;i<=rangeEnd;i++){
+    const active=speeds[i]>threshold;
+    if(active&&curStart===-1) curStart=i;
+    if(!active&&curStart!==-1){envs.push({start:curStart,end:i-1});curStart=-1;}
+  }
+  if(curStart!==-1) envs.push({start:curStart,end:rangeEnd});
+  return envs;
+}
+function mergeCloseEnvelopes(envs, gapSamples){
+  if(!envs.length) return envs;
+  const merged=[Object.assign({},envs[0])];
+  for(let i=1;i<envs.length;i++){
+    const last=merged[merged.length-1];
+    if(envs[i].start-last.end<=gapSamples) last.end=envs[i].end;
+    else merged.push(Object.assign({},envs[i]));
+  }
+  return merged;
+}
+function envPeak(speeds, env){ let mx=-Infinity; for(let i=env.start;i<=env.end;i++) if(speeds[i]>mx) mx=speeds[i]; return mx; }
+function envExtensionRise(jointRel, env){
+  const startExt=Math.hypot(jointRel[env.start].x,jointRel[env.start].y);
+  let maxExt=-Infinity;
+  for(let i=env.start;i<=env.end;i++){ const e=Math.hypot(jointRel[i].x,jointRel[i].y); if(e>maxExt) maxExt=e; }
+  return maxExt-startExt;
+}
+function chooseThreeThrowEnvelopes(speeds, jointRel, rangeStart, rangeEnd, stepT){
+  const mergeGap=Math.max(2,Math.round(0.25/stepT));
+  let envs=findEnvelopes(speeds,rangeStart,rangeEnd);
+  envs=mergeCloseEnvelopes(envs,mergeGap);
+  const minLen=Math.max(2,Math.round(0.12/stepT));
+  envs=envs.filter(e=>(e.end-e.start)>=minLen);
+  if(envs.length===3) return envs;
+  if(envs.length>3){
+    const setupHeight=(env)=>{ const sy=jointRel[env.start].y; return sy<0?1.5:(sy<0.5?1.0:0.4); };
+    const score=(env)=>envPeak(speeds,env)*Math.max(0.02,envExtensionRise(jointRel,env))*setupHeight(env);
+    envs=envs.slice().sort((a,b)=>score(b)-score(a)).slice(0,3);
+    envs.sort((a,b)=>a.start-b.start);
+    return envs;
+  }
+  const minGap=Math.max(3,Math.round(0.6/stepT));
+  const peaks=findPeaks(speeds,minGap,3,rangeStart,rangeEnd);
+  return peaks.map(p=>({start:Math.max(rangeStart,p.i-2),end:Math.min(rangeEnd,p.i+2)}));
+}
+function deriveAroundPeak(speeds, jointRel, peakIdx, prevBoundIdx, nextBoundIdx, stepT){
+  const peakPos=jointRel[peakIdx];
+  const setupSearchStart=Math.max(prevBoundIdx,peakIdx-Math.round(1.6/stepT));
+  let setupIdx=setupSearchStart,setupV=Infinity;
+  for(let i=setupSearchStart;i<=peakIdx;i++){if(speeds[i]<setupV){setupV=speeds[i];setupIdx=i;}}
+  let takebackIdx=setupIdx,bestD=-1;
+  for(let i=setupIdx;i<=peakIdx;i++){const d=Math.hypot(jointRel[i].x-peakPos.x,jointRel[i].y-peakPos.y);if(d>bestD){bestD=d;takebackIdx=i;}}
+  const followSearchEnd=Math.min(nextBoundIdx,peakIdx+Math.round(0.6/stepT));
+  let followIdx=peakIdx,bestD2=-1;
+  for(let i=peakIdx;i<=followSearchEnd;i++){const d=Math.hypot(jointRel[i].x-peakPos.x,jointRel[i].y-peakPos.y);if(d>bestD2){bestD2=d;followIdx=i;}}
+  return {setupIdx,takebackIdx,peakIdx,followIdx};
+}
+function extractThrowPhases(speeds, jointRel, env, stepT, prevBoundIdx, nextBoundIdx){
+  const baselineY=jointRel[env.start].y;
+  let peakIdx=-1,peakExt=-1;
+  for(let i=env.start;i<=env.end;i++){
+    if(jointRel[i].y>baselineY+1.0) continue;
+    const ext=Math.hypot(jointRel[i].x,jointRel[i].y);
+    if(ext>peakExt){peakExt=ext;peakIdx=i;}
+  }
+  if(peakIdx===-1){
+    peakIdx=env.start;peakExt=-1;
+    for(let i=env.start;i<=env.end;i++){const ext=Math.hypot(jointRel[i].x,jointRel[i].y);if(ext>peakExt){peakExt=ext;peakIdx=i;}}
+  }
+  return deriveAroundPeak(speeds,jointRel,peakIdx,prevBoundIdx,nextBoundIdx,stepT);
+}
+function refineOutlierRelease(speeds, jointRel, throwPhaseIdx, envs, rangeStart, rangeEnd, stepT){
+  const positions=throwPhaseIdx.map(p=>jointRel[p.peakIdx]);
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const d01=dist(positions[0],positions[1]),d02=dist(positions[0],positions[2]),d12=dist(positions[1],positions[2]);
+  const myAvgDist=[(d01+d02)/2,(d01+d12)/2,(d02+d12)/2];
+  const otherPairDist=[d12,d02,d01];
+  let outlierIdx=-1,worstRatio=2.2;
+  for(let i=0;i<3;i++){
+    if(otherPairDist[i]<1e-6) continue;
+    const ratio=myAvgDist[i]/otherPairDist[i];
+    if(ratio>worstRatio){worstRatio=ratio;outlierIdx=i;}
+  }
+  if(outlierIdx===-1) return throwPhaseIdx;
+  const others=positions.filter((_,i)=>i!==outlierIdx);
+  const target={x:(others[0].x+others[1].x)/2,y:(others[0].y+others[1].y)/2};
+  const prevBound=outlierIdx===0?rangeStart:envs[outlierIdx-1].end;
+  const nextBound=outlierIdx===2?rangeEnd:envs[outlierIdx+1].start;
+  const otherPeaks=throwPhaseIdx.filter((_,i)=>i!==outlierIdx).map(p=>p.peakIdx);
+  const minGap=Math.max(3,Math.round(0.4/stepT));
+  let bestI=-1,bestD=Infinity;
+  for(let i=prevBound;i<=nextBound;i++){
+    if(otherPeaks.some(op=>Math.abs(i-op)<minGap)) continue;
+    const d=dist(jointRel[i],target);
+    if(d<bestD){bestD=d;bestI=i;}
+  }
+  if(bestI===-1||otherPeaks.some(op=>Math.abs(bestI-op)<minGap)) return throwPhaseIdx;
+  const refined=deriveAroundPeak(speeds,jointRel,bestI,prevBound,nextBound,stepT);
+  const result=throwPhaseIdx.slice();
+  result[outlierIdx]=refined;
+  return result;
+}
+
+function collectPoseSamples(video, onProgress){
+  return new Promise((resolve)=>{
+    const samples={leftWrist:[],rightWrist:[],leftElbow:[],rightElbow:[],leftShoulder:[],rightShoulder:[]};
+    let busy=false,raf=null,settled=false;
+    function get(kp,name){
+      const k=kp.find(p=>p.part===name);
+      return (k&&k.score>0.1&&k.positionRaw)?{x:k.positionRaw[0],y:k.positionRaw[1]}:null;
+    }
+    function finish(){ if(settled) return; settled=true; if(raf) cancelAnimationFrame(raf); resolve(samples); }
+    function tick(){
+      if(settled) return;
+      if(video.ended){finish();return;}
+      if(!busy){
+        busy=true;
+        const t=video.currentTime;
+        const frameCanvas=captureFrameCanvas(video,480);
+        human.detect(frameCanvas).then(res=>{
+          if(res&&res.body&&res.body.length){
+            let best=res.body[0],bestArea=best.box?best.box[2]*best.box[3]:0;
+            for(let bi=1;bi<res.body.length;bi++){const b=res.body[bi];const area=b.box?b.box[2]*b.box[3]:0;if(area>bestArea){bestArea=area;best=b;}}
+            const kp=best.keypoints;
+            const lw=get(kp,'leftWrist'),rw=get(kp,'rightWrist'),le=get(kp,'leftElbow'),re=get(kp,'rightElbow');
+            const ls=get(kp,'leftShoulder'),rs=get(kp,'rightShoulder');
+            if(ls) samples.leftShoulder.push({t,x:ls.x,y:ls.y});
+            if(rs) samples.rightShoulder.push({t,x:rs.x,y:rs.y});
+            if(lw) samples.leftWrist.push({t,x:lw.x,y:lw.y});
+            if(rw) samples.rightWrist.push({t,x:rw.x,y:rw.y});
+            if(le) samples.leftElbow.push({t,x:le.x,y:le.y});
+            if(re) samples.rightElbow.push({t,x:re.x,y:re.y});
+          }
+          busy=false;
+        }).catch(()=>{busy=false;});
+      }
+      if(onProgress) onProgress(video.currentTime,video.duration||1);
+      raf=requestAnimationFrame(tick);
+    }
+    video.addEventListener('ended',finish,{once:true});
+    video.muted=true; video.currentTime=0;
+    video.play().then(()=>{raf=requestAnimationFrame(tick);}).catch(()=>{finish();});
+  });
+}
+
+async function analyzeVideo(video){
+  setProcessingStatus('AIを準備しています…',5);
+  try{ await ensureAI(); }
+  catch(e){
+    const err=new Error('ai load failed');
+    err.userMessage='AIの読み込みに失敗しました。通信環境（Wi-Fiなど）をご確認の上、もう一度お試しください。';
+    throw err;
+  }
+  setProcessingStatus('動画を解析しています…',8);
+  const duration=video.duration;
+  const samples=await collectPoseSamples(video,(cur,dur)=>{
+    const p=dur>0?cur/dur:0;
+    setProcessingStatus(`動画を解析しています… ${formatTime(cur)} / ${formatTime(dur)}`,8+p*65);
+  });
+  const side=pickArmSide(samples);
+  const wristSamples=samples[side+'Wrist'];
+  const elbowSamples=samples[side+'Elbow'];
+  const shoulderSamples=samples[side+'Shoulder'];
+  if(wristSamples.length<6){
+    const err=new Error('no person detected');
+    err.userMessage='動画から投げ手の動きをうまく検出できませんでした。投げ手の上半身全体が映っている動画でお試しください。';
+    throw err;
+  }
+  setProcessingStatus('体の基準位置を計算しています…',75);
+  const stepT=1/15;
+  const bodyRef=computeBodyReference(samples,duration,stepT);
+  const wristRel=buildRelativeTrack(wristSamples,bodyRef);
+  const elbowRel=buildRelativeTrack(elbowSamples,bodyRef);
+  const speeds=[0];
+  for(let i=1;i<wristRel.length;i++) speeds.push(Math.hypot(wristRel[i].x-wristRel[i-1].x,wristRel[i].y-wristRel[i-1].y)/stepT);
+  const smoothed=movingAverage(speeds,4);
+  const stance=findStableStanceWindow(bodyRef.mids,stepT);
+  let rangeStart=stance.startIdx,rangeEnd=stance.endIdx;
+  const minGapSamples=Math.max(3,Math.round(0.6/stepT));
+  if(rangeEnd-rangeStart<minGapSamples*3){rangeStart=0;rangeEnd=smoothed.length-1;}
+  setProcessingStatus('3投を特定しています…',80);
+  const envs=chooseThreeThrowEnvelopes(smoothed,wristRel,rangeStart,rangeEnd,stepT);
+  const rawPhaseIdx=[];
+  for(let k=0;k<3;k++){
+    const env=envs[k];
+    const prevBound=k===0?rangeStart:envs[k-1].end;
+    const nextBound=k===2?rangeEnd:envs[k+1].start;
+    rawPhaseIdx.push(extractThrowPhases(smoothed,wristRel,env,stepT,prevBound,nextBound));
+  }
+  const throwPhaseIdx=refineOutlierRelease(smoothed,wristRel,rawPhaseIdx,envs,rangeStart,rangeEnd,stepT);
+  // 手動編集用全軌跡
+  const fullTrack=[];
+  for(let i=rangeStart;i<=rangeEnd;i++){
+    if(i<0||i>=wristRel.length) continue;
+    const t=i*stepT;
+    const wAbs=interpAt(wristSamples,t),sAbs=interpAt(shoulderSamples,t);
+    fullTrack.push({t,x:wAbs.x,y:wAbs.y,rx:wristRel[i].x,ry:wristRel[i].y,sx:sAbs.x,sy:sAbs.y,spd:smoothed[i]||0});
+  }
+  state._fullTrack=fullTrack;
+  state._rangeStart=rangeStart;
+  state._rangeEnd=rangeEnd;
+  state._stepT=stepT;
+  state._duration=duration;
+
+  setProcessingStatus('フレームを書き出しています…',86);
+  for(let k=0;k<3;k++){
+    const idxMap=throwPhaseIdx[k];
+    const setupT=clamp(idxMap.setupIdx*stepT,0,duration);
+    video.currentTime=setupT; await waitSeeked(video);
+    const capSetup=captureFrame(video);
+    state.throws[k].setup={dataURL:capSetup.dataURL,imgW:capSetup.w,imgH:capSetup.h,time:setupT};
+    setProcessingStatus('フレームを書き出しています…',86+((k+1)/3)*6);
+    const clipStartIdx=idxMap.setupIdx;
+    const nextBound2=k===2?rangeEnd:envs[k+1].start;
+    const clipEndIdx=Math.min(nextBound2,idxMap.followIdx+Math.round(0.15/stepT));
+    const trajEndIdx=Math.min(clipEndIdx,idxMap.peakIdx+Math.round(0.12/stepT));
+    const traj=[];
+    for(let i=clipStartIdx;i<=trajEndIdx;i++){
+      if(i<0||i>=wristRel.length) continue;
+      const t=i*stepT;
+      const wAbs=interpAt(wristSamples,t),sAbs=interpAt(shoulderSamples,t);
+      traj.push({t,x:wAbs.x,y:wAbs.y,sx:sAbs.x,sy:sAbs.y});
+    }
+    state.throws[k].trajectory=traj;
+    state.throws[k].releaseTime=clamp(idxMap.peakIdx*stepT,0,duration);
+    state.throws[k].clipStart=clamp(clipStartIdx*stepT,0,duration);
+    state.throws[k].clipEnd=clamp(clipEndIdx*stepT,0,duration);
+  }
+  setProcessingStatus('完了しました',100);
+  const peakTimes=throwPhaseIdx.map(p=>clamp(p.peakIdx*stepT,0,duration));
+  return {peakTimes,duration,stanceStart:rangeStart*stepT,stanceEnd:rangeEnd*stepT};
+}
+
+/* ============================== 手動編集 ============================== */
+async function recomputeThrow(throwIdx, releaseT){
+  const ft=state._fullTrack;
+  if(!ft||!ft.length) return;
+  const stepT=state._stepT||(1/15);
+  const duration=state._duration||60;
+  const jointRel=ft.map(p=>({x:p.rx,y:p.ry}));
+  const speeds=ft.map(p=>p.spd);
+  const rangeStart=0,rangeEnd=ft.length-1;
+  const peakT=clamp(releaseT,ft[0].t,ft[ft.length-1].t);
+  const peakIdx=clamp(Math.round((peakT-ft[0].t)/stepT),0,rangeEnd);
+  const segLen=Math.floor(ft.length/3);
+  const prevBound=throwIdx===0?rangeStart:throwIdx*segLen;
+  const nextBound=throwIdx===2?rangeEnd:(throwIdx+1)*segLen;
+  const idxMap=deriveAroundPeak(speeds,jointRel,peakIdx,prevBound,nextBound,stepT);
+  const absAt=(idx)=>{const ci=clamp(idx,0,ft.length-1);return {x:ft[ci].x,y:ft[ci].y,sx:ft[ci].sx,sy:ft[ci].sy};};
+  // setup画像
+  const editVideo=document.getElementById('editVideo');
+  const setupT2=ft[clamp(idxMap.setupIdx,0,ft.length-1)].t;
+  if(editVideo&&editVideo.readyState>=1){
+    const prevT=editVideo.currentTime;
+    editVideo.currentTime=setupT2;
+    await waitSeeked(editVideo);
+    const capSetup=captureFrame(editVideo);
+    state.throws[throwIdx].setup={dataURL:capSetup.dataURL,imgW:capSetup.w,imgH:capSetup.h,time:setupT2};
+    editVideo.currentTime=prevT;
+  }
+  const clipStartIdx=idxMap.setupIdx;
+  const clipEndIdx=clamp(idxMap.followIdx+Math.round(0.15/stepT),0,rangeEnd);
+  const trajEndIdx=Math.min(clipEndIdx,peakIdx+Math.round(0.12/stepT));
+  const traj=[];
+  for(let i=clipStartIdx;i<=trajEndIdx;i++){
+    const a=absAt(i);
+    traj.push({t:ft[clamp(i,0,ft.length-1)].t,x:a.x,y:a.y,sx:a.sx,sy:a.sy});
+  }
+  state.throws[throwIdx].trajectory=traj;
+  state.throws[throwIdx].releaseTime=peakT;
+  state.throws[throwIdx].clipStart=ft[clamp(clipStartIdx,0,ft.length-1)].t;
+  state.throws[throwIdx].clipEnd=ft[clamp(clipEndIdx,0,ft.length-1)].t;
+}
+
+/* ============================== 描画ユーティリティ ============================== */
+function drawDot(ctx,x,y,color,r){
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+  ctx.lineWidth=1.5;ctx.strokeStyle='#14171A';ctx.stroke();
+}
+function setupSimpleCanvas(canvas,cssW,cssH){
+  const dpr=window.devicePixelRatio||1;
+  canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';
+  canvas.width=Math.round(cssW*dpr);canvas.height=Math.round(cssH*dpr);
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+/* ============================== タイムライン ---- */
+function renderTimelineSummary(peakTimes,duration,stanceStart,stanceEnd){
+  const track=document.getElementById('timelineTrack');
+  if(!track) return;
+  let html='';
+  if(stanceStart!=null&&stanceEnd!=null&&duration>0){
+    const lp=clamp(stanceStart/duration*100,0,100),rp=clamp(stanceEnd/duration*100,0,100);
+    html+=`<div class="timeline-stance" style="left:${lp}%;width:${Math.max(0,rp-lp)}%"></div>`;
+  }
+  html+=peakTimes.map((t,i)=>{
+    const pct=duration>0?(t/duration*100):0;
+    return `<div class="timeline-mark" style="left:${pct}%;background:${THROW_COLORS[i]}"><span class="tlabel" style="color:${THROW_COLORS[i]}">投${i+1}</span></div>`;
+  }).join('');
+  track.innerHTML=html;
+}
+
+/* ============================== セットアップ参考 ---- */
+async function renderSetupReference(){
+  const row=document.getElementById('setupRefRow');
+  if(!row) return;
+  row.innerHTML='';
+  const imgs=await Promise.all(state.throws.map(t=>t.setup?loadImage(t.setup.dataURL):null));
+  const availW=row.clientWidth||300;
+  const cw=Math.max(50,Math.floor((availW-16)/3));
+  state.throws.forEach((t,i)=>{
+    if(!t.setup) return;
+    const wrap=document.createElement('div');wrap.className='setup-thumb';
+    const c=document.createElement('canvas');
+    const dpr=window.devicePixelRatio||1;
+    const ch=cw*(t.setup.imgH/t.setup.imgW);
+    c.style.width=cw+'px';c.style.height=ch+'px';
+    c.width=Math.round(cw*dpr);c.height=Math.round(ch*dpr);
+    const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(imgs[i]) ctx.drawImage(imgs[i],0,0,cw,ch);
+    wrap.appendChild(c);
+    const label=document.createElement('div');label.className='setup-thumb-label';label.textContent=THROW_LABELS[i];
+    wrap.appendChild(label);row.appendChild(wrap);
+  });
+}
+
+/* ============================== 3投 軌跡再生 ---- */
+function syncTrajOverlay(entry){
+  requestAnimationFrame(()=>{
+    const v=entry.video,canvas=entry.canvas;
+    if(!v||!canvas) return;
+    const w=v.clientWidth,h=v.clientHeight;
+    if(!w||!h) return;
+    setupSimpleCanvas(canvas,w,h);
+    setupOverlayCanvas();
+  });
+}
+function setupOverlayCanvas(){
+  const canvas=document.getElementById('overlayCanvas');
+  if(!canvas) return;
+  const wrap=canvas.parentElement;
+  const cssW=Math.min(wrap.clientWidth||300,380);
+  const cssH=Math.round(cssW*1.25);
+  setupSimpleCanvas(canvas,cssW,cssH);
+}
+function drawOverlayFrame(){
+  const canvas=document.getElementById('overlayCanvas');
+  if(!canvas||!canvas.width||!trajVideos.length) return;
+  const dpr=window.devicePixelRatio||1;
+  const w=canvas.width/dpr,h=canvas.height/dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#0d0f11';ctx.fillRect(0,0,w,h);
+  const alphas=[0.95,0.5,0.5];
+  const layout=trajVideos.map(entry=>{
+    const v=entry.video,vw=v.videoWidth,vh=v.videoHeight;
+    if(!vw||!vh) return null;
+    const scale=Math.min(w/vw,h/vh),dw=vw*scale,dh=vh*scale;
+    return {dx:(w-dw)/2,dy:(h-dh)/2,dw,dh};
+  });
+  trajVideos.forEach((entry,i)=>{
+    const v=entry.video,L=layout[i];
+    if(!L||v.readyState<2) return;
+    ctx.globalAlpha=alphas[i];ctx.drawImage(v,L.dx,L.dy,L.dw,L.dh);
+  });
+  ctx.globalAlpha=1;
+  trajVideos.forEach((entry,i)=>{
+    const L=layout[i];if(!L) return;
+    const curT=entry.video.currentTime;
+    const pts=entry.traj.filter(p=>p.t<=curT);
+    if(!pts.length) return;
+    ctx.beginPath();
+    pts.forEach((p,pi)=>{
+      const x=L.dx+p.x*L.dw,y=L.dy+p.y*L.dh;
+      if(pi===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle=THROW_COLORS[i];ctx.lineWidth=2;ctx.globalAlpha=0.9;ctx.stroke();ctx.globalAlpha=1;
+  });
+}
+function trajDrawLoop(){
+  trajVideos.forEach(entry=>{
+    const {video,canvas,traj,idx}=entry;
+    if(!canvas||!canvas.width) return;
+    const dpr=window.devicePixelRatio||1,w=canvas.width/dpr,h=canvas.height/dpr;
+    const ctx=canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    const curT=video.currentTime;
+    const pts=traj.filter(p=>p.t<=curT);
+    if(pts.length){
+      ctx.beginPath();
+      pts.forEach((p,pi)=>{
+        if(pi===0) ctx.moveTo(p.x*w,p.y*h); else ctx.lineTo(p.x*w,p.y*h);
+      });
+      ctx.strokeStyle=THROW_COLORS[idx];ctx.lineWidth=2.5;ctx.globalAlpha=0.85;ctx.stroke();ctx.globalAlpha=1;
+      const last=pts[pts.length-1];
+      drawDot(ctx,last.sx*w,last.sy*h,'#ffffff',3);
+      drawDot(ctx,last.x*w,last.y*h,THROW_COLORS[idx],6);
+    }
+  });
+  drawOverlayFrame();
+  trajRafId=requestAnimationFrame(trajDrawLoop);
+}
+function startTrajPlayback(){
+  if(!trajVideos.length) return;
+  clearInterval(window.__trajLoopInterval);
+  trajVideos.forEach(entry=>{
+    const v=entry.video;v.playbackRate=0.5;
+    const begin=()=>{v.currentTime=entry.clipStart;v.play().catch(()=>{});};
+    if(v.readyState>=1) begin();
+    else v.addEventListener('loadedmetadata',begin,{once:true});
+  });
+  if(trajRafId) cancelAnimationFrame(trajRafId);
+  trajRafId=requestAnimationFrame(trajDrawLoop);
+  window.__trajLoopInterval=setInterval(()=>{
+    const allDone=trajVideos.length>0&&trajVideos.every(e=>e.video.paused&&e.video.currentTime>=e.clipEnd-0.05);
+    if(allDone){
+      clearInterval(window.__trajLoopInterval);
+      if(document.getElementById('screen-results').classList.contains('active')) setTimeout(startTrajPlayback,700);
+    }
+  },200);
+}
+function teardownTrajVideos(){
+  clearInterval(window.__trajLoopInterval);
+  if(trajRafId){cancelAnimationFrame(trajRafId);trajRafId=null;}
+  trajVideos.forEach(e=>{try{e.video.pause();}catch(err){}});
+  trajVideos=[];
+}
+function setupTrajVideos(){
+  const row=document.getElementById('trajVideoRow');
+  if(!row) return;
+  teardownTrajVideos();row.innerHTML='';
+  const hiddenVideo=document.getElementById('hiddenVideo');
+  const fileURL=hiddenVideo?hiddenVideo.dataset.objUrl:'';
+  if(!fileURL){
+    row.innerHTML='<p class="traj-fallback-note">軌跡の再生には動画が必要です。お手数ですが同じ動画をもう一度アップロードしてください。</p>';
+    return;
+  }
+  const availW=row.clientWidth||300;
+  const colW=Math.max(60,Math.floor((availW-16)/3));
+  trajVideos=state.throws.map((t,i)=>{
+    const col=document.createElement('div');col.className='traj-col';col.style.width=colW+'px';
+    const box=document.createElement('div');box.className='traj-video-box';
+    const vid=document.createElement('video');
+    vid.playsInline=true;vid.setAttribute('playsinline','');vid.setAttribute('webkit-playsinline','true');
+    vid.muted=true;vid.setAttribute('muted','');vid.src=fileURL;
+    const canvas=document.createElement('canvas');
+    box.appendChild(vid);box.appendChild(canvas);col.appendChild(box);
+    const label=document.createElement('div');label.className='traj-col-label';
+    label.style.color=THROW_COLORS[i];label.textContent=THROW_LABELS[i];
+    col.appendChild(label);row.appendChild(col);
+    const entry={video:vid,canvas,clipStart:t.clipStart,clipEnd:t.clipEnd,traj:t.trajectory||[],idx:i};
+    vid.addEventListener('loadedmetadata',()=>{ syncTrajOverlay(entry); setupOverlayCanvas(); });
+    vid.addEventListener('timeupdate',()=>{if(vid.currentTime>=entry.clipEnd) vid.pause();});
+    return entry;
+  });
+  setupOverlayCanvas();
+  startTrajPlayback();
+}
+async function renderComparePanel(){
+  const allDone=state.throws.every(t=>t.trajectory&&t.trajectory.length>0);
+  if(!allDone) return;
+  await renderSetupReference();
+  setupTrajVideos();
+}
+
+/* ============================== 永続化 ============================== */
+async function saveSession(meta){
+  try{
+    const data={
+      throws:state.throws.map(t=>({setup:t.setup,trajectory:t.trajectory,releaseTime:t.releaseTime,clipStart:t.clipStart,clipEnd:t.clipEnd})),
+      meta:meta||null
+    };
+    await window.storage.set(STORAGE_KEY,JSON.stringify(data),false);
+  }catch(e){}
+}
+async function loadSession(){
+  try{
+    const res=await window.storage.get(STORAGE_KEY,false);
+    if(res&&res.value){
+      const data=JSON.parse(res.value);
+      if(Array.isArray(data.throws)){
+        data.throws.forEach((t,i)=>{
+          if(!state.throws[i]||!t) return;
+          if(t.setup) state.throws[i].setup=t.setup;
+          if(Array.isArray(t.trajectory)) state.throws[i].trajectory=t.trajectory;
+          if(t.releaseTime!=null) state.throws[i].releaseTime=t.releaseTime;
+          if(t.clipStart!=null) state.throws[i].clipStart=t.clipStart;
+          if(t.clipEnd!=null) state.throws[i].clipEnd=t.clipEnd;
+        });
+      }
+      if(data.meta) lastMeta=data.meta;
+    }
+  }catch(e){}
+}
+function startOver(){
+  teardownTrajVideos();
+  stopRealtime();
+  state=createInitialState();lastMeta=null;
+  const em=document.getElementById('editModalBg');
+  if(em){em.hidden=true;document.body.style.overflow='';}
+  const eb=document.getElementById('editBtn');if(eb) eb.hidden=true;
+  const video=document.getElementById('hiddenVideo');
+  if(video){video.pause();if(video.dataset.objUrl) URL.revokeObjectURL(video.dataset.objUrl);video.removeAttribute('src');video.load();}
+  const fi=document.getElementById('fileInput');if(fi) fi.value='';
+  window.storage&&window.storage.delete&&window.storage.delete(STORAGE_KEY,false).catch(()=>{});
+  showScreen('upload');
+}
+
+/* ============================== アップロード〜解析 ============================== */
+async function handleUpload(file){
+  if(!file) return;
+  showScreen('processing');setProcessingStatus('準備しています…',2);
+  const video=document.getElementById('hiddenVideo');
+  const url=URL.createObjectURL(file);
+  if(video.dataset.objUrl) URL.revokeObjectURL(video.dataset.objUrl);
+  video.dataset.objUrl=url;video.src=url;
+  try{
+    await waitMetadata(video);
+    await ensureDuration(video);
+    state=createInitialState();
+    const result=await analyzeVideo(video);
+    lastMeta=result;
+    await saveSession(result);
+    video.pause();video.removeAttribute('src');video.load();
+    showScreen('results');
+    renderTimelineSummary(result.peakTimes,result.duration,result.stanceStart,result.stanceEnd);
+    await renderComparePanel();
+    const eb=document.getElementById('editBtn');if(eb) eb.hidden=false;
+  }catch(err){
+    console.warn('analysis failed',err);
+    showScreen('error');
+    document.getElementById('errorDetail').textContent=err&&err.userMessage?err.userMessage:'この動画は解析できませんでした。別の動画でもう一度お試しください。';
+  }
+}
+
+/* ============================== リアルタイムモード ============================== */
+function initAccumCanvas(w, h){
+  rtAccum=document.createElement('canvas');
+  rtAccum.width=w;rtAccum.height=h;
+}
+function drawGrid(ctx, w, h){
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,0.35)';ctx.lineWidth=2;
+  const cols=8,rows=12;
+  for(let i=1;i<cols;i++){const x=w*i/cols;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+  for(let j=1;j<rows;j++){const y=h*j/rows;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  ctx.restore();
+}
+function hexToRgb(hex){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+function addToAccum(x, y, color){
+  if(!rtAccum) return;
+  const ctx=rtAccum.getContext('2d');
+  const {r,g,b}=hexToRgb(color);
+  const radius=Math.max(rtAccum.width,rtAccum.height)*0.012;
+  const grd=ctx.createRadialGradient(x,y,0,x,y,radius);
+  grd.addColorStop(0,`rgba(${r},${g},${b},0.004)`);
+  grd.addColorStop(1,`rgba(${r},${g},${b},0)`);
+  ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);
+  ctx.fillStyle=grd;ctx.fill();
+}
+let rtDetecting=false;
+function rtTick(){
+  if(!rtStream) return;
+  const video=document.getElementById('rtVideo');
+  const canvas=document.getElementById('rtCanvas');
+  if(!video||!canvas||!canvas.width) return;
+  const dpr=window.devicePixelRatio||1;
+  const w=canvas.width/dpr,h=canvas.height/dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  // グリッド
+  drawGrid(ctx,w,h);
+  // 蓄積ヒートマップを描画
+  if(rtAccum){
+    ctx.globalAlpha=1;
+    ctx.drawImage(rtAccum,0,0,w,h);
+  }
+  // リアルタイム関節検出
+  if(!rtDetecting&&aiLoaded){
+    rtDetecting=true;
+    const fc=captureFrameCanvas(video,480);
+    human.detect(fc).then(res=>{
+      rtDetecting=false;
+      if(!res||!res.body||!res.body.length) return;
+      let best=res.body[0],bestArea=best.box?best.box[2]*best.box[3]:0;
+      for(let bi=1;bi<res.body.length;bi++){const b=res.body[bi];const area=b.box?b.box[2]*b.box[3]:0;if(area>bestArea){bestArea=area;best=b;}}
+      const kp=best.keypoints;
+      function get(name){const k=kp.find(p=>p.part===name);return(k&&k.score>0.15&&k.positionRaw)?{x:k.positionRaw[0],y:k.positionRaw[1]}:null;}
+      const lw=get('leftWrist'),rw=get('rightWrist'),le=get('leftElbow'),re=get('rightElbow'),ls=get('leftShoulder'),rs=get('rightShoulder');
+      const lm=(arr)=>{let s=0;for(let i=1;i<arr.length;i++) s+=Math.hypot(arr[i].x-arr[i-1].x,arr[i].y-arr[i-1].y);return s;};
+      // positionRawは0-1正規化済み
+      const joints={
+        shoulder: (lw&&rw)?(lm([lw,rw])>0?rw:lw):(rs||ls),
+        elbow: (le&&re)?(lm([le,re])>0?re:le):(re||le),
+        wrist: (lw&&rw)?(lm([lw,rw])>0?rw:lw):(rw||lw),
+      };
+      if(rtAccum&&joints.shoulder){
+        addToAccum(joints.shoulder.x*rtAccum.width,joints.shoulder.y*rtAccum.height,JOINT_COLORS.shoulder);
+      }
+      if(rtAccum&&joints.elbow){
+        addToAccum(joints.elbow.x*rtAccum.width,joints.elbow.y*rtAccum.height,JOINT_COLORS.elbow);
+      }
+      if(rtAccum&&joints.wrist){
+        addToAccum(joints.wrist.x*rtAccum.width,joints.wrist.y*rtAccum.height,JOINT_COLORS.wrist);
+      }
+      // リアルタイムマーカー（現在位置を点で表示）
+      if(joints.shoulder) drawDot(ctx,joints.shoulder.x*w,joints.shoulder.y*h,JOINT_COLORS.shoulder,7);
+      if(joints.elbow) drawDot(ctx,joints.elbow.x*w,joints.elbow.y*h,JOINT_COLORS.elbow,7);
+      if(joints.wrist) drawDot(ctx,joints.wrist.x*w,joints.wrist.y*h,JOINT_COLORS.wrist,7);
+    }).catch(()=>{rtDetecting=false;});
+  }
+  rtRafId=requestAnimationFrame(rtTick);
+}
+async function startRealtime(){
+  document.getElementById('rtStatus').textContent='AIを準備しています…';
+  try{ await ensureAI(); }
+  catch(e){
+    alert('AIの読み込みに失敗しました。Wi-Fiで再試行してください。');
+    return;
+  }
+  try{
+    rtStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:rtFacing},audio:false
+    });
+    const video=document.getElementById('rtVideo');
+    video.srcObject=rtStream;
+    // 全画面表示ON
+    document.getElementById('rtFullscreen').classList.add('active');
+    document.body.style.overflow='hidden';
+    await new Promise(r=>{ video.addEventListener('loadedmetadata',r,{once:true}); video.load(); });
+    try{ await video.play(); }catch(e2){ /* autoplayで起動済みの場合は無視 */ }
+    // canvasサイズをvp全体に合わせる（レイアウト確定後に設定）
+    await new Promise(r=>requestAnimationFrame(r));
+    syncRtCanvas();
+    document.getElementById('rtStatus').textContent='投げるたびに関節の位置が蓄積されます';
+    rtRafId=requestAnimationFrame(rtTick);
+  }catch(e){
+    document.getElementById('rtStatus').textContent='カメラを起動できませんでした。設定からカメラへのアクセスを許可してください。';
+    document.getElementById('rtFullscreen').classList.remove('active');
+    document.body.style.overflow='';
+    if(rtStream){rtStream.getTracks().forEach(t=>t.stop());rtStream=null;}
+  }
+}
+function syncRtCanvas(){
+  const canvas=document.getElementById('rtCanvas');
+  const dpr=window.devicePixelRatio||1;
+  const W=window.innerWidth, H=window.innerHeight;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+  initAccumCanvas(Math.round(W*dpr),Math.round(H*dpr));
+}
+function stopRealtime(){
+  if(rtRafId){cancelAnimationFrame(rtRafId);rtRafId=null;}
+  if(rtStream){rtStream.getTracks().forEach(t=>t.stop());rtStream=null;}
+  rtAccum=null;rtDetecting=false;
+  const video=document.getElementById('rtVideo');
+  if(video){video.pause();video.srcObject=null;}
+  document.getElementById('rtFullscreen').classList.remove('active');
+  document.body.style.overflow='';
+  document.getElementById('rtStatus').textContent='AIを準備しています…';
+}
+
+/* ============================== イベント配線 ============================== */
+function wireGlobalEvents(){
+  // モード切替
+  document.getElementById('modeAnalyze').addEventListener('click',()=>{
+    document.getElementById('modeAnalyze').classList.add('active');
+    document.getElementById('modeRealtime').classList.remove('active');
+    document.getElementById('analyzeMode').hidden=false;
+    document.getElementById('realtimeMode').hidden=true;
+    stopRealtime();
+  });
+  document.getElementById('modeRealtime').addEventListener('click',()=>{
+    document.getElementById('modeRealtime').classList.add('active');
+    document.getElementById('modeAnalyze').classList.remove('active');
+    document.getElementById('realtimeMode').hidden=false;
+    document.getElementById('analyzeMode').hidden=true;
+  });
+  // 録画解析
+  document.getElementById('uploadBtn').addEventListener('click',()=>document.getElementById('fileInput').click());
+  document.getElementById('fileInput').addEventListener('change',(e)=>{
+    const file=e.target.files&&e.target.files[0];
+    handleUpload(file);
+  });
+  document.getElementById('retryFromError').addEventListener('click',startOver);
+  document.getElementById('startOverBtn').addEventListener('click',startOver);
+  document.getElementById('trajPlayBtn').addEventListener('click',()=>{
+    clearInterval(window.__trajLoopInterval);startTrajPlayback();
+  });
+  window.addEventListener('resize',()=>{
+    const resultsActive=document.getElementById('screen-results').classList.contains('active');
+    if(resultsActive){renderSetupReference();setupTrajVideos();}
+    if(rtStream) syncRtCanvas();
+  });
+  // リアルタイム
+  document.getElementById('rtStartBtn').addEventListener('click',startRealtime);
+  document.getElementById('rtStopBtn').addEventListener('click',()=>{
+    stopRealtime();
+  });
+  document.getElementById('rtResetBtn').addEventListener('click',()=>{
+    if(rtAccum){const ctx=rtAccum.getContext('2d');ctx.clearRect(0,0,rtAccum.width,rtAccum.height);}
+  });
+  document.getElementById('rtFlipBtn').addEventListener('click',async()=>{
+    rtFacing = rtFacing==='user' ? 'environment' : 'user';
+    const label = rtFacing==='user' ? '内側' : '外側';
+    document.getElementById('rtStatus').textContent=`カメラを切り替えています（${label}）…`;
+    // ストリームだけ切り替えて再起動(蓄積データは保持)
+    if(rtStream){rtStream.getTracks().forEach(t=>t.stop());rtStream=null;}
+    try{
+      rtStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:rtFacing},audio:false});
+      const video=document.getElementById('rtVideo');
+      video.srcObject=rtStream;
+      await new Promise(r=>video.addEventListener('loadedmetadata',r,{once:true}));
+      try{ await video.play(); }catch(e){}
+      document.getElementById('rtStatus').textContent='投げるたびに関節の位置が蓄積されます';
+    }catch(e){
+      document.getElementById('rtStatus').textContent='カメラの切り替えに失敗しました';
+    }
+  });
+  // 手動編集モーダル
+  let editThrowIdx=0;
+  const editModal=document.getElementById('editModalBg');
+  const editVid=document.getElementById('editVideo');
+  function openEditModal(){
+    const fileURL=document.getElementById('hiddenVideo')?.dataset?.objUrl;
+    if(!fileURL){alert('動画データが見つかりません。もう一度アップロードしてください。');return;}
+    if(!editVid.src||editVid.dataset.src!==fileURL){editVid.src=fileURL;editVid.dataset.src=fileURL;}
+    editModal.hidden=false;document.body.style.overflow='hidden';
+    seekEditTo(editThrowIdx);
+  }
+  function closeEditModal(){editModal.hidden=true;document.body.style.overflow='';editVid.pause();}
+  function seekEditTo(throwIdx){
+    editThrowIdx=throwIdx;
+    document.querySelectorAll('.edit-throw-tab').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.throw)===throwIdx));
+    const releaseT=state.throws[throwIdx]?.releaseTime||0;
+    const seekTo=()=>{editVid.currentTime=releaseT;updateEditTime();};
+    if(editVid.readyState>=1) seekTo();
+    else editVid.addEventListener('loadedmetadata',seekTo,{once:true});
+  }
+  function updateEditTime(){
+    const t=editVid.currentTime,d=editVid.duration||0;
+    const fmt=(v)=>{const m=Math.floor(v/60),s=Math.floor(v%60);return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;};
+    document.getElementById('editTime').textContent=`${fmt(t)} / ${fmt(d)}`;
+    if(d>0) document.getElementById('editSeek').value=Math.round(t/d*10000);
+  }
+  document.getElementById('editBtn').addEventListener('click',openEditModal);
+  document.getElementById('editCloseBtn').addEventListener('click',closeEditModal);
+  document.querySelectorAll('.edit-throw-tab').forEach(btn=>btn.addEventListener('click',()=>seekEditTo(parseInt(btn.dataset.throw))));
+  editVid.addEventListener('timeupdate',updateEditTime);
+  editVid.addEventListener('play',()=>{document.getElementById('editPlayBtn').textContent='⏸';});
+  editVid.addEventListener('pause',()=>{document.getElementById('editPlayBtn').textContent='▶';});
+  document.getElementById('editPlayBtn').addEventListener('click',()=>{if(editVid.paused) editVid.play().catch(()=>{}); else editVid.pause();});
+  document.getElementById('editStepBack').addEventListener('click',()=>{editVid.pause();editVid.currentTime=Math.max(0,editVid.currentTime-1/30);});
+  document.getElementById('editStepFwd').addEventListener('click',()=>{editVid.pause();editVid.currentTime=Math.min(editVid.duration||99,editVid.currentTime+1/30);});
+  document.getElementById('editSeek').addEventListener('input',(e)=>{if(!editVid.duration) return;editVid.currentTime=parseInt(e.target.value)/10000*editVid.duration;});
+  document.getElementById('editConfirmBtn').addEventListener('click',async()=>{
+    const t=editVid.currentTime;
+    const saving=document.getElementById('editSaving');saving.hidden=false;editVid.pause();
+    await recomputeThrow(editThrowIdx,t);
+    closeEditModal();saving.hidden=true;
+    await renderSetupReference();setupTrajVideos();
+    if(lastMeta){lastMeta.peakTimes[editThrowIdx]=t;renderTimelineSummary(lastMeta.peakTimes,lastMeta.duration,lastMeta.stanceStart,lastMeta.stanceEnd);}
+  });
+}
+
+/* ============================== 初期化 ============================== */
+async function init(){
+  state=createInitialState();
+  await loadSession();
+  wireGlobalEvents();
+  const hasResults=state.throws.every(t=>t.trajectory&&t.trajectory.length>0);
+  if(hasResults){
+    showScreen('results');
+    if(lastMeta) renderTimelineSummary(lastMeta.peakTimes,lastMeta.duration,lastMeta.stanceStart,lastMeta.stanceEnd);
+    await renderComparePanel();
+  }else{
+    showScreen('upload');
+  }
+}
+init();
+</script>
+</body>
+</html>
